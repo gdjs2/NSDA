@@ -1,0 +1,163 @@
+import sys
+import pyghidra
+import toml
+import argparse
+
+from pathlib import Path
+from loguru import logger
+from datetime import datetime
+from DataLoader import DataLoader, Data
+from DataLoaderRegistry import DATALOADER_REGISTRY
+from EvaluatorRegistry import EVALUATOR_REGISTRY
+from Evaluator import Evaluator
+
+logger.remove()
+logger.add(sys.stderr, level="INFO")
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="NSDA Evaluation")
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        default="config.toml",
+        help="Path to the configuration TOML file."
+    )
+    return parser.parse_args()
+
+def load_config(config_path: str) -> dict:
+    """Load configuration from a TOML file."""
+    try:
+        with open(config_path, "r") as f:
+            config = toml.load(f)
+        logger.info(f"Configuration loaded from {config_path}.")
+        return config
+    except Exception as e:
+        logger.error(f"Failed to load configuration from {config_path}: {e}")
+        raise
+
+def _eval_data(
+    evaluator: Evaluator,
+    data: Data, 
+    args: dict,
+) -> tuple[float, float, float, float, float, float, float]:
+    return evaluator.evaluate(
+        binary_path=data.binary_path,
+        labels=data.labels,
+        args=args
+    )
+
+def _eval_dataset(
+    evaluators: dict,
+    data: dict[str, Data], 
+    subset: set[str] | None = None,
+) -> dict[str, tuple[float, float, float, float, float, float, float]]:   # [code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time]
+    if subset is None: logger.info(f"Evaluating dataset with {len(data)} samples.")
+    else: logger.info(f"Evaluating subset with {len(subset)} samples from dataset with {len(data)} samples.")
+    results = {}
+    for evaluator_name, evaluator_info in evaluators.items():
+        evaluator = evaluator_info["cls"]
+        args = evaluator_info.get("args", {})
+        logger.info(f"Using evaluator: {evaluator_name} with args: {args}")
+        results[evaluator_name] = {}
+        for idx, (data_name, data_instance) in enumerate(data.items()):
+            if subset is not None and data_name not in subset:
+                logger.debug(f"Skipping sample {data_name} as it's not in the specified subset.")
+                continue
+            logger.info(f"Evaluating sample {idx+1}/{len(data)}: {data_name} from {data_instance.binary_path}")
+            code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time = _eval_data(
+                evaluator,
+                data_instance,
+                args
+            )
+            results[evaluator_name][data_name] = (code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time)
+            logger.info(f"Sample {data_name}: Code Precision={code_precision:.5f}, Code Recall={code_recall:.5f}, Data Precision={data_precision:.5f}, Data Recall={data_recall:.5f}, Preprocessing Time={preprocessing_time:.2f}s, Training Time={training_time:.2f}s, Redisassemble Time={redisassemble_time:.2f}s")
+    return results
+        
+def _eval_datasets(
+    evaluators: dict,
+    datasets: list[str], 
+    dataset_config: dict,
+    subset_flg: bool = False
+) -> dict[str, dict[str, tuple[float, float, float, float, float, float, float]]]: # [dataset_name][data_name] = (code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time):
+    logger.info(f"Dataset to be evaluated: {datasets}")
+    results = {}
+    for dataset_name in datasets:
+        dataset_config = dataset_config[dataset_name.lower()]
+        dataset_home = dataset_config["path"]
+        dataloader_name = dataset_config["loader"]
+        dataloader_cls = DATALOADER_REGISTRY.get(dataloader_name)
+        
+        if dataloader_cls is None:
+            logger.error(f"Dataloader {dataloader_name} not found in registry.")
+            continue
+        dataloader: DataLoader = dataloader_cls()
+        data = dataloader.load(dataset_home)
+        logger.debug(f"Loaded {len(data)} samples from dataset {dataset_name} using {dataloader_name}.")
+        results[dataset_name] = _eval_dataset(
+            evaluators,
+            data, 
+            subset=None if not subset_flg else set(dataset_config.get("subset", []))
+        )
+    return results
+
+def dump_result(
+    results: dict[str, dict[str, tuple[float, float, float, float, float, float, float]]],
+    result_path: str
+):
+    import json
+    root = Path(result_path)
+    root.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    result_file = root / f"{timestamp}.json"
+    with open(result_file, "w") as f:
+        json.dump(results, f, indent=4)
+    logger.info(f"Dumped evaluation results to {result_file}.")
+
+if __name__ == "__main__":
+    ns = _parse_args()
+    config = load_config(ns.config)
+
+    logger.info(f"Starting evaluation with config: {config}")
+    logger.info(f"Evaluator: {config['config']['evaluator']}")
+    logger.info(f"Evaluation type: {config['config']['eval_type']}")
+    logger.info(f"Ghidra Home: {config['config']['ghidra_home']}")
+
+    # Set Ghidra Home Env for pyghidra
+    # os.environ["GHIDRA_INSTALL_DIR"] = config["config"]["ghidra_home"]
+    if not pyghidra.started():
+        pyghidra.start(install_dir=config["config"]["ghidra_home"])
+
+    results = {}
+    evaluators = {}
+    # Load evaluators
+    for evaluator_name in config["config"]["evaluator"]:
+        evaluators[evaluator_name] = {
+            "cls": EVALUATOR_REGISTRY[f"{evaluator_name}Evaluator"](),
+            "args": config["evaluator"].get(evaluator_name.lower(), {})
+        }
+
+    logger.info(evaluators)
+    if config["config"]["eval_type"] == "Dataset Evaluation":   # Wholeset evaluation
+        results = _eval_datasets(
+            evaluators=evaluators,
+            datasets=config["config"]["datasets"],
+            dataset_config=config["dataset"]
+        )
+
+    elif config["config"]["eval_type"] == "Subset Evaluation":    # Subset evaluation
+        results = _eval_datasets(
+            evaluators=evaluators,
+            datasets=config["config"]["datasets"],
+            dataset_config=config["dataset"],
+            subset_flg=True
+        )
+    else:
+        logger.error(f"Unknown evaluation type: {config['config']['eval_type']}")
+
+    if config["config"].get("dump_json", False):
+        dump_result(
+            results, 
+            config["config"].get("result_path", "./")
+        )
+

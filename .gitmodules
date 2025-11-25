@@ -1,0 +1,3 @@
+[submodule "Loadstar"]
+	path = Loadstar
+	url = https://github.com/Benksy/Loadstar.git
