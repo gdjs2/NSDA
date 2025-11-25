@@ -37,6 +37,7 @@ class GhidraEvaluator(Evaluator):
     ) -> tuple[float, float, float, float, float, float, float]:
         from my_program_helper import MyProgram
         from iterative_training import delete_ghidra_cache
+        delete_ghidra_cache(binary_path)
         start_time = datetime.now()
         with pyghidra.open_program(binary_path, language='ARM:LE:32:v4') as flat_api:
             my_program = MyProgram(flat_api)

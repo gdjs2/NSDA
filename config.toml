@@ -1,15 +1,15 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
-eval_type = "Subset Evaluation" # "Dataset Evaluation", "Subset Evaluation"
+eval_type = "Dataset Evaluation" # "Dataset Evaluation", "Subset Evaluation"
 datasets = ["Loadstar"]
 dump_json = true
 result_path = "./eval_results"
-evaluator = ["NSDA", "Ghidra"]
+evaluator = ["Ghidra"]
 
 [dataset.loadstar]
 path = "./Loadstar"
 loader = "LoadstarDataLoader"
-subset = ["acos_fbd.app"]
+# subset = ["acos_fbd.app"]
 
 [evaluator.nsda]
 iteration_limit = 5
