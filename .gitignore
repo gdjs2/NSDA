@@ -214,3 +214,5 @@ __pycache__/
 result-analysis/
 fixed_gt/
 eval_results/
+
+nsda_env/*

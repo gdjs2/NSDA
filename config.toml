@@ -1,16 +1,22 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
-eval_type = "Dataset Evaluation" # "Dataset Evaluation", "Subset Evaluation"
+eval_type = "Dataset Evaluation"
 datasets = ["Loadstar"]
 dump_json = true
 result_path = "./eval_results"
-evaluator = ["Ghidra"]
+evaluator = ["Ghidra", "Loadstar"]
 
 [dataset.loadstar]
 path = "./Loadstar"
 loader = "LoadstarDataLoader"
-# subset = ["acos_fbd.app"]
 
 [evaluator.nsda]
 iteration_limit = 5
 epoches_limit = 500
+
+[evaluator.loadstar]
+loadstar_home = "./Loadstar"
+model_path = "model.keras"
+tokenizer_path = "utils/tokenizer.pkl"
+maxlen = 100
+batch_size = 128
