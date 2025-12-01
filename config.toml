@@ -8,7 +8,7 @@ result_path = "./eval_results"
 evaluator = ["Ghidra", "NSDA", "Loadstar"]
 
 [dataset.loadstar]
-path = "./Loadstar"
+path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
 subset = ["5.22.152.8.PRG"]
 
@@ -17,7 +17,7 @@ iteration_limit = 5
 epoches_limit = 500
 
 [evaluator.loadstar]
-loadstar_home = "./Loadstar"
+loadstar_home = "./Datasets/Loadstar"
 weights_path = "new_weights.weights.h5"
 tokenizer_path = "utils/tokenizer.pkl"
 maxlen = 100
