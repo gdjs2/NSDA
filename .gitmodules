@@ -1,6 +1,6 @@
 [submodule "Loadstar"]
-	path = ./Datasets/Loadstar
+	path = Loadstar
 	url = https://github.com/Benksy/Loadstar.git
 [submodule "coreutils-arm"]
-	path = ./Datasets/coreutils-arm
+	path = coreutils-arm
 	url = git@github.com:Q1IQ/coreutils-arm.git

@@ -98,4 +98,34 @@ class LoadstarDataLoader(DataLoader):
         
         return data_dict
 
-        
+@register_dataloader
+class ARMCoreutilsDataLoader(DataLoader):
+    def load(self, coreutils_arm_home: str) -> dict[str, Data]:
+        home = Path(coreutils_arm_home)
+        binary_path = home / "build-output" / "usr" / "arm32"
+        label_path = home / "labels" # Double check
+        binaries = list(binary_path.glob("*"))
+
+        data_dict = {}
+        for b in binaries:
+            stem = b.stem
+            label_file = label_path / f"{stem}.csv"
+            if not label_file.exists():
+                logger.warning(f"Label file {label_file} does not exist. Skipping.")
+                continue
+            with open(label_file, "r") as f:
+                reader = csv.reader(f)
+                reader.__next__()
+                byte_labels = bitarray()
+                for row in reader:
+                    start, end, label = map(int, row)
+                    size = end - start
+                    byte_labels.extend("1" * size if label == 1 else "0" * size)
+            
+            data_dict[b.name] = Data(
+                name=b.name,
+                binary_path=str(b),
+                labels=byte_labels,
+                subset=None
+            )
+        return data_dict
