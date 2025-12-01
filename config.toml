@@ -1,21 +1,23 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
-eval_type = "Dataset Evaluation"
+eval_type = "Subset Evaluation"
 datasets = ["Loadstar"]
 dump_json = true
 result_path = "./eval_results"
-evaluator = ["Ghidra", "Loadstar"]
+# evaluator = ["Loadstar"]
+evaluator = ["Ghidra", "NSDA"]
 
 [dataset.loadstar]
-path = "./Loadstar"
+path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
+subset = ["5.22.152.8.PRG"]
 
 [evaluator.nsda]
 iteration_limit = 5
 epoches_limit = 500
 
 [evaluator.loadstar]
-loadstar_home = "./Loadstar"
+loadstar_home = "./Datasets/Loadstar"
 model_path = "model.keras"
 tokenizer_path = "utils/tokenizer.pkl"
 maxlen = 100
