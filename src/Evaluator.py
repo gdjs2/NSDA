@@ -83,7 +83,8 @@ class LoadstarEvaluator(Evaluator):
         import pandas as pd
         import pickle
         from loguru import logger
-        from tensorflow.keras.models import load_model
+        from tensorflow import keras
+        from tensorflow.keras import layers
         
         # Add Loadstar to path to import e2e_pipeline
         loadstar_home = Path(args["loadstar_home"])
@@ -113,16 +114,49 @@ class LoadstarEvaluator(Evaluator):
         inst_list = df["inst"].astype(str).tolist()
         process_time = (datetime.now() - start_time).total_seconds()
         
-        # Load model and tokenizer
+        # Load tokenizer and prepare model parameters
         inference_start = datetime.now()
-        model_path = loadstar_home / args["model_path"]
         tokenizer_path = loadstar_home / args["tokenizer_path"]
+        weights_path = loadstar_home / args.get("weights_path", "new_weights.weights.h5")
         maxlen = args["maxlen"]
         batch_size = args["batch_size"]
         
+        # Model hyperparameters (can be overridden via args)
+        vocab_size = args.get("vocab_size", 651997)
+        embedding_dim = args.get("embedding_dim", 128)
+        lstm_units = args.get("lstm_units", 64)
+        
         with tokenizer_path.open("rb") as f:
             tokenizer = pickle.load(f)
-        model = load_model(str(model_path))
+        
+        # Build model architecture
+        def build_model(vocab_size, embedding_dim, maxlen, lstm_units):
+            model = keras.Sequential([
+                layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=maxlen, name='embedding'),
+                layers.LSTM(lstm_units, return_sequences=False, name='lstm'),
+                layers.Flatten(name='flatten'),
+                layers.Dense(16, activation='relu', name='dense'),
+                layers.Dropout(0.5, name='dropout'),
+                layers.Dense(16, activation='relu', name='dense_1'),
+                layers.Dropout(0.5, name='dropout_1'),
+                layers.Dense(2, activation='softmax', name='dense_2')
+            ])
+            
+            # Compile model (required before loading weights)
+            model.compile(
+                optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy']
+            )
+            
+            # Build the model with input shape
+            model.build((None, maxlen))
+            
+            return model
+        
+        # Create model and load weights
+        model = build_model(vocab_size, embedding_dim, maxlen, lstm_units)
+        model.load_weights(str(weights_path))
         
         # Use Loadstar's tokenization function
         X = safe_tokenize(inst_list, tokenizer, maxlen)

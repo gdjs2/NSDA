@@ -4,7 +4,7 @@ eval_type = "Dataset Evaluation"
 datasets = ["Loadstar"]
 dump_json = true
 result_path = "./eval_results"
-evaluator = ["Ghidra", "Loadstar"]
+evaluator = ["Loadstar"]
 
 [dataset.loadstar]
 path = "./Loadstar"
@@ -16,7 +16,10 @@ epoches_limit = 500
 
 [evaluator.loadstar]
 loadstar_home = "./Loadstar"
-model_path = "model.keras"
+weights_path = "new_weights.weights.h5"
 tokenizer_path = "utils/tokenizer.pkl"
 maxlen = 100
 batch_size = 128
+vocab_size = 651997
+embedding_dim = 128
+lstm_units = 64
