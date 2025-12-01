@@ -4,8 +4,8 @@ eval_type = "Subset Evaluation"
 datasets = ["Loadstar"]
 dump_json = true
 result_path = "./eval_results"
-evaluator = ["Loadstar"]
-# evaluator = ["Ghidra", "NSDA", "Loadstar"]
+# evaluator = ["Loadstar"]
+evaluator = ["Ghidra", "NSDA", "Loadstar"]
 
 [dataset.loadstar]
 path = "./Loadstar"
