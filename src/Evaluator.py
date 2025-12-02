@@ -79,9 +79,10 @@ class LoadstarEvaluator(Evaluator):
         args: dict
     ) -> tuple[float, float, float, float, float, float, float]:
         import sys
-        from pathlib import Path
-        import pandas as pd
+        import r2pipe
         import pickle
+        import pandas as pd
+        from pathlib import Path
         from loguru import logger
         from tensorflow import keras
         from tensorflow.keras import layers
@@ -94,24 +95,21 @@ class LoadstarEvaluator(Evaluator):
         from e2e_pipeline import safe_tokenize
         
         start_time = datetime.now()
+        r2 = r2pipe.open(binary_path, flags=["-a", "arm", "-b", "32"])
+        offset, step = 0, 4
+        info = r2.cmdj(r"ij")
+        if info is None:
+            logger.error("r2: Get file info failed")
+            raise RuntimeError
         
-        # Find corresponding CSV file
-        binary_path_obj = Path(binary_path)
-        binary_name = binary_path_obj.stem
-        labeled_dir = binary_path_obj.parent.parent / "labeled"
-        csv_path = labeled_dir / f"{binary_name}.csv"
-        
-        if not csv_path.exists():
-            raise FileNotFoundError(f"CSV file not found: {csv_path}")
-        
-        logger.debug(f"LoadstarEvaluator: Reading {csv_path}")
-        
-        # Read CSV
-        df = pd.read_csv(csv_path)
-        if "inst" not in df.columns:
-            raise KeyError(f"'inst' column not found in {csv_path}")
-        
-        inst_list = df["inst"].astype(str).tolist()
+        inst_list = []
+        file_size = info["core"]["size"]
+        while offset < file_size:
+            instr = r2.cmdj(f"pdj 1 @ {offset}")
+            if not instr: instr = "invalid"
+            else: instr = instr[0]["disasm"]
+            offset += step
+            inst_list.append(instr)
         process_time = (datetime.now() - start_time).total_seconds()
         
         # Load tokenizer and prepare model parameters
