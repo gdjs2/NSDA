@@ -103,7 +103,7 @@ class ARMCoreutilsDataLoader(DataLoader):
     def load(self, coreutils_arm_home: str) -> dict[str, Data]:
         home = Path(coreutils_arm_home)
         binary_path = home / "build-output" / "usr" / "arm32"
-        label_path = home / "labels" # Double check
+        label_path = home / "labeled"
         binaries = list(binary_path.glob("*"))
 
         data_dict = {}
