@@ -11,12 +11,12 @@ class Data:
         self, 
         name: str, 
         binary_path: str,
-        labels: bitarray, # byte-level labels, 0-code, 1-data
+        code_set: set[int],
         subset: str | None = None
     ):
         self.name = name
         self.binary_path = binary_path
-        self.labels = labels
+        self.code_set = code_set
         self.subset = subset
 
 class DataLoader(ABC):
@@ -71,13 +71,16 @@ class LoadstarDataLoader(DataLoader):
             with open(label_file, "r") as f:
                 reader = csv.reader(f)
                 reader.__next__()  # Skip header
-                byte_labels = bitarray()
+                code_set = set()
+                offset = 0x10000
                 for row in reader:
-                    byte_labels.extend("1111" if row[1] == "1" else "0000")
+                    if row[1] == "0":
+                        code_set.add(offset)
+                    offset += 4
             data_dict[b.name] = Data(
                 name=b.name,
                 binary_path=str(b),
-                labels=byte_labels,
+                code_set=code_set,
                 subset=subset_name
             )
         return data_dict
@@ -102,8 +105,8 @@ class LoadstarDataLoader(DataLoader):
 class ARMCoreutilsDataLoader(DataLoader):
     def load(self, coreutils_arm_home: str) -> dict[str, Data]:
         home = Path(coreutils_arm_home)
-        binary_path = home / "build-output" / "usr" / "arm32"
-        label_path = home / "labeled"
+        binary_path = home / "build-output-armv4" / "stripped" / "usr" / "local" / "bin"
+        label_path = home / "build-output-armv4" / "labels"
         binaries = list(binary_path.glob("*"))
 
         data_dict = {}
@@ -116,16 +119,15 @@ class ARMCoreutilsDataLoader(DataLoader):
             with open(label_file, "r") as f:
                 reader = csv.reader(f)
                 reader.__next__()
-                byte_labels = bitarray()
+                code_set = set()
                 for row in reader:
-                    start, end, label = map(int, row)
-                    size = end - start
-                    byte_labels.extend("1" * size if label == 1 else "0" * size)
+                    if row[3] == "0":
+                        code_set.add(int(row[0], 16))
             
             data_dict[b.name] = Data(
                 name=b.name,
                 binary_path=str(b),
-                labels=byte_labels,
+                code_set=code_set,
                 subset=None
             )
         return data_dict

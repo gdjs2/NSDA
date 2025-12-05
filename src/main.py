@@ -11,8 +11,9 @@ from DataLoaderRegistry import DATALOADER_REGISTRY
 from EvaluatorRegistry import EVALUATOR_REGISTRY
 from Evaluator import Evaluator
 
+open("debug.log", "w").close()
 logger.remove()
-logger.add(sys.stderr, level="INFO")
+logger.add("debug.log", level="DEBUG")
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="NSDA Evaluation")
@@ -39,19 +40,22 @@ def load_config(config_path: str) -> dict:
 def _eval_data(
     evaluator: Evaluator,
     data: Data, 
+    base: int | None,
     args: dict,
-) -> tuple[float, float, float, float, float, float, float]:
+) -> tuple[float, float, float, float, float, list[int], list[int]]:
     return evaluator.evaluate(
         binary_path=data.binary_path,
-        labels=data.labels,
+        code_set=data.code_set,
+        base=base,
         args=args
     )
 
 def _eval_dataset(
     evaluators: dict,
     data: dict[str, Data], 
+    base: int | None,
     subset: set[str] | None = None,
-) -> dict[str, tuple[float, float, float, float, float, float, float]]:   # [code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time]
+) -> dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]:   # [code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list]
     if subset is None: logger.info(f"Evaluating dataset with {len(data)} samples.")
     else: logger.info(f"Evaluating subset with {len(subset)} samples from dataset with {len(data)} samples.")
     results = {}
@@ -65,25 +69,26 @@ def _eval_dataset(
                 logger.debug(f"Skipping sample {data_name} as it's not in the specified subset.")
                 continue
             logger.info(f"Evaluating sample {idx+1}/{len(data)}: {data_name} from {data_instance.binary_path}")
-            code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time = _eval_data(
+            code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list = _eval_data(
                 evaluator,
                 data_instance,
-                args
+                base=base,
+                args=args
             )
-            results[evaluator_name][data_name] = (code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time)
-            logger.info(f"Sample {data_name}: Code Precision={code_precision:.5f}, Code Recall={code_recall:.5f}, Data Precision={data_precision:.5f}, Data Recall={data_recall:.5f}, Preprocessing Time={preprocessing_time:.2f}s, Training Time={training_time:.2f}s, Redisassemble Time={redisassemble_time:.2f}s")
+            results[evaluator_name][data_name] = (code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list)
+            logger.info(f"Sample {data_name}: Code Precision={code_precision:.5f}, Code Recall={code_recall:.5f}, Preprocessing Time={preprocessing_time:.2f}s, Training Time={training_time:.2f}s, Redisassemble Time={redisassemble_time:.2f}s")
     return results
         
 def _eval_datasets(
     evaluators: dict,
     datasets: list[str], 
-    dataset_config: dict,
+    datasets_config: dict,
     subset_flg: bool = False
-) -> dict[str, dict[str, tuple[float, float, float, float, float, float, float]]]: # [dataset_name][data_name] = (code_precision, code_recall, data_precision, data_recall, preprocessing_time, training_time, redisassemble_time):
+) -> dict[str, dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]]: # [dataset_name][data_name] = (code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list)
     logger.info(f"Dataset to be evaluated: {datasets}")
     results = {}
     for dataset_name in datasets:
-        dataset_config = dataset_config[dataset_name.lower()]
+        dataset_config = datasets_config[dataset_name.lower()]
         dataset_home = dataset_config["path"]
         dataloader_name = dataset_config["loader"]
         dataloader_cls = DATALOADER_REGISTRY.get(dataloader_name)
@@ -97,21 +102,38 @@ def _eval_datasets(
         results[dataset_name] = _eval_dataset(
             evaluators,
             data, 
+            base=dataset_config.get("base", None),
             subset=None if not subset_flg else set(dataset_config.get("subset", []))
         )
     return results
 
 def dump_result(
-    results: dict[str, dict[str, tuple[float, float, float, float, float, float, float]]],
-    result_path: str
+    results: dict[str, dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]],
+    result_path: str,
+    dump_error_list: bool = False
 ):
     import json
     root = Path(result_path)
     root.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     result_file = root / f"{timestamp}.json"
+    processed_result = {}
+
+    for dataset_name, r in results.items():
+        processed_result[dataset_name] = {}
+        for evaluator_name, evaluator_results in r.items():
+            processed_result[dataset_name][evaluator_name] = {}
+            for data_name, metrics in evaluator_results.items():
+                if dump_error_list:
+                    error_code_list, error_data_list = metrics[-2], metrics[-1]
+                    error_code_list_str = [hex(code) for code in error_code_list]
+                    error_data_list_str = [hex(code) for code in error_data_list]
+                    processed_result[dataset_name][evaluator_name][data_name] = (*metrics[:5], error_code_list_str, error_data_list_str)
+                else:
+                    processed_result[dataset_name][evaluator_name][data_name] = metrics[:5]
+
     with open(result_file, "w") as f:
-        json.dump(results, f, indent=4)
+        json.dump(processed_result, f, indent=4)
     logger.info(f"Dumped evaluation results to {result_file}.")
 
 if __name__ == "__main__":
@@ -142,14 +164,14 @@ if __name__ == "__main__":
         results = _eval_datasets(
             evaluators=evaluators,
             datasets=config["config"]["datasets"],
-            dataset_config=config["dataset"]
+            datasets_config=config["dataset"]
         )
 
     elif config["config"]["eval_type"] == "Subset Evaluation":    # Subset evaluation
         results = _eval_datasets(
             evaluators=evaluators,
             datasets=config["config"]["datasets"],
-            dataset_config=config["dataset"],
+            datasets_config=config["dataset"],
             subset_flg=True
         )
     else:
@@ -158,6 +180,7 @@ if __name__ == "__main__":
     if config["config"].get("dump_json", False):
         dump_result(
             results, 
-            config["config"].get("result_path", "./")
+            config["config"].get("result_path", "./"),
+            dump_error_list=config["config"].get("dump_error_list", False)
         )
 

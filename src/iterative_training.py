@@ -21,7 +21,7 @@ def redisasemble(
     Re-disassemble the blocks using the trained CodeBlock model.
     """
     flg = True
-    with pyghidra.open_program(binary_path, language='ARM:LE:32:v4') as flat_api:
+    with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
         for block, emb in zip(my_program.blocks, my_program.embeddings):
             if CodeBlock(ltn.Constant(emb)).value >= 0.5 and block.type == "Data" and not block.failed_disasm_flg:
                 flat_api.clearListing(block.start_address, block.end_address)
@@ -38,10 +38,11 @@ def delete_ghidra_cache(binary_path: str):
 
 def iterative_training(
     binary_path: str, 
-    labels: bitarray, 
+    code_set: set[int],
+    base: int | None,
     iteration_limit: int = 1,
     epoches_limit: int = 500
-) -> tuple[float, float, float, float, float, float, float]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
+) -> tuple[float, float, float, float, float, list[int], list[int]]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
     finish_flg = False
     iteration_cnt = 0
     delete_ghidra_cache(binary_path)
@@ -52,8 +53,8 @@ def iterative_training(
         CodeBlock = None
         iteration_cnt += 1
         preprocess_start_time = datetime.now()
-        with pyghidra.open_program(binary_path, language='ARM:LE:32:v4') as flat_api:
-            my_program = MyProgram(flat_api)
+        with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
+            my_program = MyProgram(flat_api, base=base)
         preprocess_time = (datetime.now() - preprocess_start_time).total_seconds()
         logger.info(f"Program preprocessed in {preprocess_time:.2f}s with {len(my_program.blocks)} blocks")
         training_start_time = datetime.now()
@@ -63,7 +64,8 @@ def iterative_training(
         finish_flg = redisasemble(CodeBlock, binary_path, my_program)
         total_redisassemble_time += (datetime.now() - redisasemble_start_time).total_seconds()
     delete_ghidra_cache(binary_path)
-    return *evaluate(my_program, CodeBlock, 0.5, labels), preprocess_time, total_training_time, total_redisassemble_time
+    code_precision, code_recall, error_code_list, error_data_list = evaluate(my_program, code_set)
+    return code_precision, code_recall, preprocess_time, total_training_time, total_redisassemble_time, error_code_list, error_data_list
 
 # def main(binaries, gt):
 #     finish = False

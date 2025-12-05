@@ -92,41 +92,31 @@ def train(
 
 def evaluate(
     my_program: MyProgram,
-    CodeBlock: ltn.Predicate,
-    threshold: float,
-    labels: bitarray
-) -> tuple[float, float, float, float]:
-    predictions = bitarray()
-    for i, block in enumerate(my_program.blocks):
-        if CodeBlock(ltn.Constant(my_program.embeddings[i])).value >= threshold:
-            predictions.extend('0'*block.size)
+    code_set: set[int]
+) -> tuple[float, float, list[int], list[int]]:
+    
+    tp = fp = fn = 0
+    error_code_list = []
+    error_data_list = []
+
+    for block in my_program.blocks:
+        logger.debug(f"{block}")
+        # space = block.start_address.getAddressSpace()
+        if block.start_address.getAddressSpace().getType() != AddressSpace.TYPE_RAM:
+            break
+        block_offsets = set(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
+        hits = block_offsets & code_set
+        if block.type == "Code":
+            tp += len(hits)
+            fp += len(block_offsets - hits)
+            error_code_list.extend(block_offsets - hits)
         else:
-            predictions.extend('1'*block.size)
-    
-    # Truncate predictions to match labels length
-    if len(predictions) > len(labels):
-        predictions = predictions[:len(labels)]
-    elif len(predictions) < len(labels):
-        labels = labels[:len(predictions)]
-    
-    # For code
-    code_pred = ~predictions
-    code_labels = ~labels
-    # logger.debug(f"len(code_pred)={len(code_pred)}, len(code_labels)={len(code_labels)}")
-    tp = (code_pred & code_labels).count()
-    fp = (code_pred & ~code_labels).count()
-    fn = (~code_pred & code_labels).count()
+            fn += len(hits)
+            error_data_list.extend(hits)
     code_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     code_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    
-    # For data
-    tp = (predictions & labels).count()
-    fp = (predictions & ~labels).count()
-    fn = (~predictions & labels).count()
-    data_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    data_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
 
-    return (code_precision, code_recall, data_precision, data_recall)
+    return (code_precision, code_recall, error_code_list, error_data_list)
 
 # def evaluate(
 #         my_program: MyProgram,

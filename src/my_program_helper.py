@@ -4,15 +4,31 @@ from datetime import datetime
 from graph_helper import *
 
 class MyProgram:
-    def __init__(self: Self, flat_api: FlatProgramAPI) -> None:
+    def __init__(self: Self, flat_api: FlatProgramAPI, base: int | None = None) -> None:
         """
         Initialize the Program instance with a FlatProgramAPI instance.
         Args:
             flat_api (FlatProgramAPI): Flat API instance to interact with the Ghidra program.
+            base (int | None): Optional base address to set for the program. This is determined
+                by the loader if unspecified.
         """
         self.flat_api = flat_api
         
         program = flat_api.getCurrentProgram()
+
+        if base:
+            address_factory = program.getAddressFactory()
+            default_space = address_factory.getDefaultAddressSpace()
+            new_base_address = default_space.getAddress(base)
+            txId = program.startTransaction("Set Image Base")
+            try:
+                program.setImageBase(new_base_address, True) 
+            except Exception as e:
+                logger.error(f"Failed to set image base: {e}")
+            finally:
+                program.endTransaction(txId, True) 
+            flat_api.analyzeAll(program)
+        
         listing = program.getListing()
         memory = program.getMemory()
         ref_manager = program.getReferenceManager()

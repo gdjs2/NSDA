@@ -1,16 +1,27 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
 eval_type = "Subset Evaluation"
-datasets = ["Loadstar"]
+# datasets = ["Loadstar"]
+datasets = ["Loadstar", "arm32_coreutils"]
 dump_json = true
+dump_error_list = false
 result_path = "./eval_results"
-evaluator = ["Loadstar"]
-# evaluator = ["Ghidra", "NSDA", "Loadstar"]
+# evaluator = ["Loadstar"]
+# evaluator = ["NSDA"]
+evaluator = ["Ghidra", "NSDA", "Loadstar"]
+# evaluator = ["Ghidra", "NSDA"]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
-subset = ["5.22.152.8.PRG"]
+subset = ["acos_fbd.app"]
+base = 0x10000
+
+[dataset.arm32_coreutils]
+path = "./Datasets/coreutils-arm"
+loader = "ARMCoreutilsDataLoader"
+subset = ["b2sum"]
+base = 0x10000
 
 [evaluator.nsda]
 iteration_limit = 5
