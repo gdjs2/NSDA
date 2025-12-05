@@ -1,9 +1,9 @@
-from bitarray import bitarray
 from my_program_helper import *
 from my_models import MLPClassifier
 from ltn import fuzzy_ops
-from pathlib import Path
 from datetime import datetime
+
+from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
 
 def train(
         my_program: MyProgram,

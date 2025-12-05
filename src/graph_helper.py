@@ -2,8 +2,8 @@ import os
 import networkx as nx
 
 from blocks_helper import *
-from ghidra.program.flatapi import FlatProgramAPI
-from ghidra.program.model.address import AddressSet
+from ghidra.program.flatapi import FlatProgramAPI # pyright: ignore[reportMissingImports]
+from ghidra.program.model.address import AddressSet # pyright: ignore[reportMissingImports]
 
 def _get_fallthrough_edges(blocks: list[Block]):
     """

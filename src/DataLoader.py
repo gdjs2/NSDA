@@ -72,7 +72,7 @@ class LoadstarDataLoader(DataLoader):
                 reader = csv.reader(f)
                 reader.__next__()  # Skip header
                 code_set = set()
-                offset = 0x10000
+                offset = 0x0
                 for row in reader:
                     if row[1] == "0":
                         code_set.add(offset)

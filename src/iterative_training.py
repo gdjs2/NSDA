@@ -1,12 +1,9 @@
 import math
 import shutil
-import argparse
 
 from ltn_helper import *
 from pathlib import Path
 from datetime import datetime
-from functools import reduce
-from bitarray import bitarray
 
 results = []
 

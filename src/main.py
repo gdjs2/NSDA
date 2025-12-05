@@ -11,9 +11,12 @@ from DataLoaderRegistry import DATALOADER_REGISTRY
 from EvaluatorRegistry import EVALUATOR_REGISTRY
 from Evaluator import Evaluator
 
-open("debug.log", "w").close()
+# open("debug.log", "w").close()
+# logger.remove()
+# logger.add("debug.log", level="DEBUG")
+
 logger.remove()
-logger.add("debug.log", level="DEBUG")
+logger.add(sys.stderr, level="INFO")
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="NSDA Evaluation")

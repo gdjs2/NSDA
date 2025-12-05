@@ -41,7 +41,8 @@ class GhidraEvaluator(Evaluator):
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         from my_program_helper import MyProgram
         from iterative_training import delete_ghidra_cache
-        from ghidra.program.model.address import AddressSpace
+        from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
+        
         delete_ghidra_cache(binary_path)
         start_time = datetime.now()
         with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
@@ -87,8 +88,8 @@ class LoadstarEvaluator(Evaluator):
         import pandas as pd
         from pathlib import Path
         from loguru import logger
-        from tensorflow import keras
-        from tensorflow.keras import layers
+        from tensorflow import keras # pyright: ignore[reportAttributeAccessIssue] 
+        from tensorflow.keras import layers # pyright: ignore[reportMissingImports]
         
         # Add Loadstar to path to import e2e_pipeline
         loadstar_home = Path(args["loadstar_home"])

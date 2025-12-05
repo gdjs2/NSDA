@@ -15,7 +15,7 @@ evaluator = ["Ghidra", "NSDA", "Loadstar"]
 path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
 subset = ["acos_fbd.app"]
-base = 0x10000
+base = 0x0
 
 [dataset.arm32_coreutils]
 path = "./Datasets/coreutils-arm"
