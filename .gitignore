@@ -216,3 +216,4 @@ fixed_gt/
 eval_results/
 
 nsda_env/*
+*.png

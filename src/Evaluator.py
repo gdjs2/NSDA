@@ -93,7 +93,9 @@ class LoadstarEvaluator(Evaluator):
         
         # Add Loadstar to path to import e2e_pipeline
         loadstar_home = Path(args["loadstar_home"])
-        sys.path.insert(0, str(loadstar_home))
+        loadstar_home_str = str(loadstar_home)
+        if loadstar_home_str not in sys.path:
+            sys.path.insert(0, loadstar_home_str)
         
         # Import Loadstar's functions
         from e2e_pipeline import safe_tokenize
@@ -197,5 +199,12 @@ class LoadstarEvaluator(Evaluator):
 
         error_code_list = list(predict_codeset - code_set)
         error_data_list = list(predict_dataset & code_set)
+
+        del model
+        import gc
+        gc.collect()
+        from tensorflow.keras import backend as K # pyright: ignore[reportMissingImports]
+        K.clear_session()
+        r2.quit()
         
         return code_precision, code_recall, process_time, inference_time, 0.0, error_code_list, error_data_list
