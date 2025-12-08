@@ -33,12 +33,25 @@ def delete_ghidra_cache(binary_path: str):
         shutil.rmtree(ghidra_folder)
         logger.info(f"Deleted ghidra cache folder {ghidra_folder}")
 
+def save_ghidra_cache(binary_path: str, saved_path: str, suffix: str | None = None):
+    ghidra_folder = f"{binary_path}_ghidra"
+    path = Path(ghidra_folder)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    des_path = Path(saved_path) / f"{path.name}_{timestamp}_{suffix}"
+    if path.exists() and path.is_dir():
+        if not des_path.parent.exists():
+            des_path.parent.mkdir(parents=True)
+        shutil.move(path, des_path)
+        logger.info(f"Save ghidra cache folder {ghidra_folder} to {des_path}")
+
 def iterative_training(
     binary_path: str, 
     code_set: set[int],
     base: int | None,
     iteration_limit: int = 1,
-    epoches_limit: int = 500
+    epoches_limit: int = 500,
+    keep_ghidra_prj: bool = False,
+    keep_ghidra_prj_path: str | None = None
 ) -> tuple[float, float, float, float, float, list[int], list[int]]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
     finish_flg = False
     iteration_cnt = 0
@@ -60,7 +73,8 @@ def iterative_training(
         redisasemble_start_time = datetime.now()
         finish_flg = redisasemble(CodeBlock, binary_path, my_program)
         total_redisassemble_time += (datetime.now() - redisasemble_start_time).total_seconds()
-    delete_ghidra_cache(binary_path)
+    if keep_ghidra_prj and keep_ghidra_prj_path: save_ghidra_cache(binary_path, keep_ghidra_prj_path, "nsda")
+    else: delete_ghidra_cache(binary_path)
     code_precision, code_recall, error_code_list, error_data_list = evaluate(my_program, code_set)
     return code_precision, code_recall, preprocess_time, total_training_time, total_redisassemble_time, error_code_list, error_data_list
 

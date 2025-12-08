@@ -217,3 +217,4 @@ eval_results/
 
 nsda_env/*
 *.png
+saved_ghidra_prjs/

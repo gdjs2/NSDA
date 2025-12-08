@@ -11,9 +11,9 @@ from DataLoaderRegistry import DATALOADER_REGISTRY
 from EvaluatorRegistry import EVALUATOR_REGISTRY
 from Evaluator import Evaluator
 
-open("debug.log", "w").close()
-logger.remove()
-logger.add("debug.log", level="INFO")
+# open("debug.log", "w").close()
+# logger.remove()
+# logger.add("debug.log", level="INFO")
 
 # logger.remove()
 # logger.add(sys.stderr, level="INFO")
@@ -139,9 +139,31 @@ def dump_result(
         json.dump(processed_result, f, indent=4)
     logger.info(f"Dumped evaluation results to {result_file}.")
 
+def config_logger(
+        log_file: str | None = None, 
+        log_level: str | None = None
+):
+    logger.remove()
+    if log_level is None:
+        log_level = "INFO"
+    else:
+        log_level = log_level.upper()
+    if log_file is None or log_file == "stderr":
+        logger.add(sys.stderr, level=log_level)
+    elif log_file == "stdout":
+        logger.add(sys.stdout, level=log_level)
+    else: # files
+        logger.add(log_file, level=log_level)
+    return 
+
 if __name__ == "__main__":
     ns = _parse_args()
     config = load_config(ns.config)
+
+    config_logger(
+        log_file=config["config"]["log_file"], 
+        log_level=config["config"]["log_level"]
+    )
 
     logger.info(f"Starting evaluation with config: {config}")
     logger.info(f"Evaluator: {config['config']['evaluator']}")

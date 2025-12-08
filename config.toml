@@ -1,17 +1,20 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
 # eval_type = "Subset Evaluation"
-eval_type = "Dataset Evaluation"
-# datasets = ["Loadstar"]
-datasets = ["Loadstar", "arm32_coreutils"]
+eval_type = "Subset Evaluation"
+datasets = ["Loadstar"]
+# datasets = ["Loadstar", "arm32_coreutils"]
 # datasets = ["arm32_coreutils"]
 dump_json = true
 dump_error_list = false
 result_path = "./eval_results"
 # evaluator = ["Loadstar"]
 # evaluator = ["NSDA"]
-evaluator = ["Ghidra", "NSDA", "Loadstar"]
-# evaluator = ["Ghidra", "NSDA"]
+# evaluator = ["Ghidra", "NSDA", "Loadstar"]
+evaluator = ["Ghidra", "NSDA"]
+
+log_file = "stderr"
+log_level = "info"
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
@@ -28,6 +31,12 @@ base = 0x10000
 [evaluator.nsda]
 iteration_limit = 5
 epoches_limit = 500
+keep_ghidra_prj = true
+keep_ghidra_prj_path = "./saved_ghidra_prjs"
+
+[evaluator.ghidra]
+keep_ghidra_prj = true
+keep_ghidra_prj_path = "./saved_ghidra_prjs"
 
 [evaluator.loadstar]
 loadstar_home = "./Datasets/Loadstar"

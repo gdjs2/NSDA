@@ -28,7 +28,7 @@ class NSDAEvaluator(Evaluator):
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"])
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"])
     
 @register_evaluator
 class GhidraEvaluator(Evaluator):
@@ -40,7 +40,7 @@ class GhidraEvaluator(Evaluator):
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         from my_program_helper import MyProgram
-        from iterative_training import delete_ghidra_cache
+        from iterative_training import delete_ghidra_cache, save_ghidra_cache
         from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
         
         delete_ghidra_cache(binary_path)
@@ -49,7 +49,9 @@ class GhidraEvaluator(Evaluator):
             my_program = MyProgram(flat_api, base=base)
 
         process_time = (datetime.now() - start_time).total_seconds()
-        delete_ghidra_cache(binary_path)
+        if args["keep_ghidra_prj"] and args["keep_ghidra_prj_path"]: 
+            save_ghidra_cache(binary_path, args["keep_ghidra_prj_path"], "ghidra")
+        else: delete_ghidra_cache(binary_path)
 
         tp = fp = fn = 0
         error_code_list = []
