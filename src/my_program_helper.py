@@ -4,7 +4,7 @@ from datetime import datetime
 from graph_helper import *
 
 class MyProgram:
-    def __init__(self: Self, flat_api: FlatProgramAPI, base: int | None = None) -> None:
+    def __init__(self: Self, flat_api: FlatProgramAPI, base: int | None = None, without_nn: bool = False) -> None:
         """
         Initialize the Program instance with a FlatProgramAPI instance.
         Args:
@@ -46,8 +46,11 @@ class MyProgram:
         # check_very_short(self.blocks)
 
         # Generate embeddings from the feature vectors
-        self.embeddings = generate_embeddings_from_feature_vector(self.blocks)
-        # self.embeddings = generate_random_embeddings(self.blocks)
+        if without_nn:
+            self.embeddings = generate_random_embeddings(self.blocks)
+        else:
+            self.embeddings = generate_embeddings_from_feature_vector(self.blocks)
+        
         self.block2idx = {block: idx for idx, block in enumerate(self.blocks)}
 
     def get_rel_vars(self: Self, edge_type: str) -> tuple[ltn.Variable, ltn.Variable] | tuple[None, None]:

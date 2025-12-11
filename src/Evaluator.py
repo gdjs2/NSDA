@@ -29,6 +29,18 @@ class NSDAEvaluator(Evaluator):
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         from iterative_training import iterative_training
         return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"])
+
+@register_evaluator
+class ProbNSDAEvaluator(Evaluator):
+    def evaluate(
+        self,
+        binary_path: str,
+        base: int,
+        code_set: set[int],
+        args: dict
+    ) -> tuple[float, float, float, float, float, list[int], list[int]]:
+        from iterative_training import iterative_training
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], without_nn=True)
     
 @register_evaluator
 class GhidraEvaluator(Evaluator):
