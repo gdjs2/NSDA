@@ -7,6 +7,9 @@ from loguru import logger
 from DataLoaderRegistry import register_dataloader
 
 class Data:
+    """
+    Data class representing a binary and its associated ground truth code set.
+    """
     def __init__(
         self, 
         name: str, 
@@ -14,46 +17,58 @@ class Data:
         code_set: set[int],
         subset: str | None = None
     ):
+        """
+        Initialize a Data instance.
+        
+        :param self: The instance of the Data class.
+        :param name: The name of this Data in Dataset.
+        :type name: str
+        :param binary_path: The file path to the binary.
+        :type binary_path: str
+        :param code_set: The set of ground truth code addresses.
+        :type code_set: set[int]
+        :param subset: The subset this Data belongs to, if any.
+        :type subset: str | None
+        """
         self.name = name
         self.binary_path = binary_path
         self.code_set = code_set
         self.subset = subset
 
 class DataLoader(ABC):
+    """
+    Abstract base class for data loaders.
+    """
     @abstractmethod
-    def load(self, source_path: str) -> dict[str, Data]:
-        """Load data from the specified source path."""
+    def load(self, source_path: str) -> dict[str, Data] | None:
+        """
+        Load data from the specified source path.
+
+        :param self: The instance of the DataLoader class.
+        :param source_path: The path to load data from.
+        :type source_path: str
+        :return: A dictionary mapping data names to Data instances, or None if loading fails.
+        :rtype: dict[str, Data] | None
+        """
         pass
-    
-    # @abstractmethod
-    # def load_single_data(self, binary_name: str) -> Data | None:
-    #     """Load a single data instance from binary and label files."""
-    #     pass
 
 @register_dataloader
-class LoadstarDataLoader(DataLoader):        
-    # def load_single_data(self, binary_name: str) -> Data | None:
-        
-    #     if not bin_path.exists():
-    #         logger.warning(f"Binary file {bin_path} does not exist. Skipping.")
-    #         return None
-    #     if not lab_path.exists():
-    #         logger.warning(f"Label file {lab_path} does not exist. Skipping.")
-    #         return None
-    #     with open(lab_path, "r") as f:
-    #         reader = csv.reader(f)
-    #         reader.__next__()  # Skip header
-    #         byte_labels = bitarray()
-    #         for row in reader:
-    #             byte_labels.extend("1111" if row[1] == "1" else "0000")
-    #     return Data(
-    #         name=bin_path.stem,
-    #         binary_path=str(bin_path),
-    #         labels=byte_labels
-    #     )
-    
+class LoadstarDataLoader(DataLoader):
+    """
+    DataLoader for the Loadstar dataset.
+    """
     def _load(self, subset_path: str, subset_name: str | None) -> dict[str, Data] | None:
-        # Implementation for loading subset of loadstar dataset
+        """
+        Load data from a specific subset path.
+        
+        :param self: The instance of the LoadstarDataLoader class.
+        :param subset_path: The path to the subset directory.
+        :type subset_path: str
+        :param subset_name: The name of the subset.
+        :type subset_name: str | None
+        :return: A dictionary mapping data names to Data instances, or None if required directories are missing.
+        :rtype: dict[str, Data] | None
+        """
         bins_dir = Path(subset_path) / "bins"
         labels_dir = Path(subset_path) / "labeled"
         if not bins_dir.exists() or not labels_dir.exists():
@@ -85,7 +100,16 @@ class LoadstarDataLoader(DataLoader):
             )
         return data_dict
 
-    def load(self, loadstar_home: str) -> dict[str, Data]:
+    def load(self, loadstar_home: str) -> dict[str, Data] | None:
+        """
+        Load data from the Loadstar dataset home directory.
+        
+        :param self: The instance of the LoadstarDataLoader class.
+        :param loadstar_home: The path to the Loadstar dataset home directory.
+        :type loadstar_home: str
+        :return: A dictionary mapping data names to Data instances, or None if loading fails.
+        :rtype: dict[str, Data]
+        """
         home = Path(loadstar_home)
         dataset_config = {
             "NS_1": home / "Dataset" / "NS_1",
@@ -103,7 +127,19 @@ class LoadstarDataLoader(DataLoader):
 
 @register_dataloader
 class ARMCoreutilsDataLoader(DataLoader):
-    def load(self, coreutils_arm_home: str) -> dict[str, Data]:
+    """
+    DataLoader for the ARM32 Coreutils dataset.
+    """
+    def load(self, coreutils_arm_home: str) -> dict[str, Data] | None:
+        """
+        Load data from the ARM32 Coreutils dataset home directory.
+        
+        :param self: The instance of the ARMCoreutilsDataLoader class.
+        :param coreutils_arm_home: The path to the ARM32 Coreutils dataset home directory.
+        :type coreutils_arm_home: str
+        :return: A dictionary mapping data names to Data instances, or None if loading fails.
+        :rtype: dict[str, Data] | None
+        """
         home = Path(coreutils_arm_home)
         binary_path = home / "build-output-armv4" / "stripped" / "usr" / "local" / "bin"
         label_path = home / "build-output-armv4" / "labels"

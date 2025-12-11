@@ -15,7 +15,29 @@ class Evaluator(ABC):
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
-        """Evaluate predictions against ground truth and return metrics."""
+        """
+        Evaluate predictions against ground truth and return metrics.
+        
+        :param self: Self
+        :param binary_path: Path to the binary file to evaluate.
+        :type binary_path: str
+        :param base: Optional base address for the binary.
+        :type base: int | None
+        :param code_set: Set of ground truth code addresses.
+        :type code_set: set[int]
+        :param args: Additional arguments for evaluator.
+        :type args: dict
+        :return: A tuple containing evaluation metrics: 
+            - Code Precision (float)
+            - Code Recall (float)
+            - Preprocessing Time (float)
+            - Training Time (float)
+            - Redisassemble Time (float)
+            - List of error code addresses (Debug use, list[int])
+            - List of error data addresses (Debug use, list[int])
+        :rtype: tuple[float, float, float, float, float, list[int], list[int]]
+        
+        """
         pass
 
 @register_evaluator
@@ -23,10 +45,31 @@ class NSDAEvaluator(Evaluator):
     def evaluate(
         self, 
         binary_path: str,
-        base: int,
+        base: int | None,
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
+        """
+        NSDA Evaluator. 
+        See Evaluator.evaluate for parameter descriptions.
+
+        :param args: Additional arguments for evaluator.
+        :type args: dict
+            - iteration_limit (int): Maximum number of iterations for training.
+            - epoches_limit (int): Maximum number of epochs for training.
+            - keep_ghidra_prj (bool): Whether to keep the Ghidra project after evaluation.
+            - keep_ghidra_prj_path (str | None): Path to save the Ghidra project if keeping.
+
+        :return: A tuple containing evaluation metrics: 
+            - Code Precision (float) 
+            - Code Recall (float)
+            - Preprocessing Time (float)
+            - Training Time (float)
+            - Redisassemble Time (float)
+            - List of error code addresses (Debug use, list[int])
+            - List of error data addresses (Debug use, list[int])
+        :rtype: tuple[float, float, float, float, float, list[int], list[int]]
+        """
         from iterative_training import iterative_training
         return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"])
 
@@ -39,6 +82,26 @@ class ProbNSDAEvaluator(Evaluator):
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
+        """
+        Probabilistic NSDA Evaluator without neural network.
+        See Evaluator.evaluate for parameter descriptions.
+
+        :param args: Additional arguments for evaluator.
+        :type args: dict
+            - iteration_limit (int): Maximum number of iterations for training.
+            - epoches_limit (int): Maximum number of epochs for training.
+            - keep_ghidra_prj (bool): Whether to keep the Ghidra project after evaluation.
+            - keep_ghidra_prj_path (str | None): Path to save the Ghidra project if keeping.
+        :return: A tuple containing evaluation metrics:
+            - Code Precision (float) 
+            - Code Recall (float)
+            - Preprocessing Time (float)
+            - Training Time (float)
+            - Redisassemble Time (float)
+            - List of error code addresses (Debug use, list[int])
+            - List of error data addresses (Debug use, list[int])
+        :rtype: tuple[float, float, float, float, float, list[int], list[int]]
+        """
         from iterative_training import iterative_training
         return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], without_nn=True)
     
@@ -51,6 +114,24 @@ class GhidraEvaluator(Evaluator):
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
+        """
+        Ghidra Evaluator.
+        See Evaluator.evaluate for parameter descriptions.
+
+        :param args: Additional arguments for evaluator.
+        :type args: dict
+            - keep_ghidra_prj (bool): Whether to keep the Ghidra project after evaluation.
+            - keep_ghidra_prj_path (str | None): Path to save the Ghidra project if keeping.
+        :return: A tuple containing evaluation metrics:
+            - Code Precision (float) 
+            - Code Recall (float)
+            - Preprocessing Time (float)
+            - Training Time (float)
+            - Redisassemble Time (float)
+            - List of error code addresses (Debug use, list[int])
+            - List of error data addresses (Debug use, list[int])
+        :rtype: tuple[float, float, float, float, float, list[int], list[int]]
+        """
         from my_program_helper import MyProgram
         from iterative_training import delete_ghidra_cache, save_ghidra_cache
         from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
@@ -96,6 +177,29 @@ class LoadstarEvaluator(Evaluator):
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
+        """
+        Loadstar Evaluator.
+        See Evaluator.evaluate for parameter descriptions.
+        :param args: Additional arguments for evaluator.
+        :type args: dict
+            - loadstar_home (str): Path to Loadstar home directory.
+            - tokenizer_path (str): Path to the tokenizer file.
+            - weights_path (str): Path to the model weights file.
+            - maxlen (int): Maximum length for tokenization.
+            - batch_size (int): Batch size for inference.
+            - vocab_size (int): Vocabulary size for the model.
+            - embedding_dim (int): Embedding dimension for the model.
+            - lstm_units (int): Number of LSTM units for the model.
+        :return: A tuple containing evaluation metrics:
+            - Code Precision (float) 
+            - Code Recall (float)
+            - Preprocessing Time (float)
+            - Inference Time (float)
+            - Redisassemble Time (float)
+            - List of error code addresses (Debug use, list[int])
+            - List of error data addresses (Debug use, list[int])
+        :rtype: tuple[float, float, float, float, float, list[int], list[int]]
+        """
         import sys
         import r2pipe
         import pickle
@@ -214,6 +318,7 @@ class LoadstarEvaluator(Evaluator):
         error_code_list = list(predict_codeset - code_set)
         error_data_list = list(predict_dataset & code_set)
 
+        # delete TensorFlow/Keras model to free up resources (memory leak prevention)
         del model
         import gc
         gc.collect()

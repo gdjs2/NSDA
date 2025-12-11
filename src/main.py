@@ -101,6 +101,9 @@ def _eval_datasets(
             continue
         dataloader: DataLoader = dataloader_cls()
         data = dataloader.load(dataset_home)
+        if data is None:
+            logger.error(f"Failed to load data for dataset {dataset_name} using {dataloader_name}.")
+            continue
         logger.debug(f"Loaded {len(data)} samples from dataset {dataset_name} using {dataloader_name}.")
         results[dataset_name] = _eval_dataset(
             evaluators,
