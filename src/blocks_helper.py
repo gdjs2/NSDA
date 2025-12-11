@@ -10,14 +10,13 @@ from datetime import datetime
 from sys import argv
 from loguru import logger
 from typing import Literal, Self
-from ghidra.program.model.address import Address
-from ghidra.program.model.pcode import PcodeOp
-from ghidra.program.model.listing import Instruction, Listing, Program
-from ghidra.program.model.scalar import Scalar
-from ghidra.app.util import PseudoDisassembler, PseudoDisassemblerContext, PseudoInstruction
-from ghidra.program.model.mem import Memory
-from ghidra.program.model.symbol import ReferenceManager
-from java.math import BigInteger
+from ghidra.program.model.address import Address # pyright: ignore[reportMissingImports]
+from ghidra.program.model.pcode import PcodeOp # pyright: ignore[reportMissingImports]
+from ghidra.program.model.listing import Instruction, Listing, Program # pyright: ignore[reportMissingImports]
+from ghidra.program.model.scalar import Scalar # pyright: ignore[reportMissingImports]
+from ghidra.app.util import PseudoDisassembler, PseudoDisassemblerContext, PseudoInstruction # pyright: ignore[reportMissingImports]
+from ghidra.program.model.mem import Memory # pyright: ignore[reportMissingImports]
+from ghidra.program.model.symbol import ReferenceManager # pyright: ignore[reportMissingImports]
 
 COMPARISON_OPCODES = [
     PcodeOp.INT_EQUAL,
@@ -41,7 +40,7 @@ class Block:
     Attributes:
         start_address (Address): The starting address of the block.
         end_address (Address): The ending address of the block.
-        type (str): The type of the block, either "Code" or "Data".
+        type (Literal["Code", "Data", "Unknown"]): The type of the block, either "Code" or "Data".
         section_name (str): The name of the section the block belongs to.
         cond_branch_flg (bool|None): Flag indicating if the block contains conditional branches.
         def_use_flg (bool|None): Flag indicating if the block has def-use relationships.
@@ -56,7 +55,7 @@ class Block:
             self: Self, 
             start_address: Address, 
             end_address: Address, 
-            type: Literal["Code", "Data"], 
+            type: Literal["Code", "Data", "Unknown"], 
             section_name: str
         ) -> None:
         """
@@ -69,7 +68,7 @@ class Block:
         """
         self.start_address: Address = start_address
         self.end_address: Address = end_address
-        self.type: str = type
+        self.type: Literal["Code", "Data", "Unknown"] = type
         self.section_name: str = section_name
         self.cond_branch_flg: bool|None = None
         self.def_use_flg: bool|None = None
@@ -133,6 +132,9 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
         in_data_block = False
         data_start = None
 
+        in_unknown_block = False
+        unknown_start = None
+
         while addr <= blk_end_addr:
             code_unit = listing.getCodeUnitAt(addr)
 
@@ -144,6 +146,12 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
                     blocks.append(Block(data_start, block_end, "Data", mmry_blk.getName()))
                     in_data_block = False
                     data_start = None
+                
+                if in_unknown_block:
+                    block_end = code_unit.getMinAddress().subtract(1)
+                    blocks.append(Block(unknown_start, block_end, "Unknown", mmry_blk.getName()))
+                    in_unknown_block = False
+                    unknown_start = None
 
                 if not in_code_block:
                     code_start = addr
@@ -158,16 +166,40 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
                     code_start = None
 
             else:
-                # Close any ongoing code block
-                if in_code_block:
-                    block_end = code_unit.getMinAddress().subtract(1)
-                    blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName()))
-                    in_code_block = False
-                    code_start = None
+                if code_unit.getMnemonicString() == "??": # Unknown Block
+                    # Close any ongoing code block
+                    if in_code_block:
+                        block_end = code_unit.getMinAddress().subtract(1)
+                        blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName()))
+                        in_code_block = False
+                        code_start = None
 
-                if not in_data_block:
-                    data_start = addr
-                    in_data_block = True
+                    if in_data_block:
+                        block_end = code_unit.getMinAddress().subtract(1)
+                        blocks.append(Block(data_start, block_end, "Data", mmry_blk.getName()))
+                        in_data_block = False
+                        data_start = None
+
+                    if not in_unknown_block:
+                        unknown_start = addr
+                        in_unknown_block = True
+                else: # Data Block
+                    # Close any ongoing code block
+                    if in_code_block:
+                        block_end = code_unit.getMinAddress().subtract(1)
+                        blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName()))
+                        in_code_block = False
+                        code_start = None
+
+                    if in_unknown_block:
+                        block_end = code_unit.getMinAddress().subtract(1)
+                        blocks.append(Block(unknown_start, block_end, "Unknown", mmry_blk.getName()))
+                        in_unknown_block = False
+                        unknown_start = None
+
+                    if not in_data_block:
+                        data_start = addr
+                        in_data_block = True
 
             addr = addr.add(code_unit.getLength())
 
@@ -176,6 +208,8 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
             blocks.append(Block(code_start, blk_end_addr, "Code", mmry_blk.getName()))
         if in_data_block:
             blocks.append(Block(data_start, blk_end_addr, "Data", mmry_blk.getName()))
+        if in_unknown_block:
+            blocks.append(Block(unknown_start, blk_end_addr, "Unknown", mmry_blk.getName()))
 
     return blocks
 
@@ -213,7 +247,7 @@ def pseudo_disassemble_blocks(blocks: list[Block], program: Program) -> None:
 def split_data_blocks(blocks: list[Block]) -> list[Block]:
     splited_blocks = []
     for block in blocks:
-        if block.type != "Data" or block.pseudo_instrs is None:
+        if block.type == "Code" or block.pseudo_instrs is None:
             splited_blocks.append(block)
             continue
         last_instr_idx = 0
@@ -223,7 +257,7 @@ def split_data_blocks(blocks: list[Block]) -> list[Block]:
             flow_type = instr.getFlowType()
             if flow_type is not None and (flow_type.isCall() or flow_type.isJump() or flow_type.isTerminal()):
                 # logger.debug(f"Split {block} @ {instr.getMaxAddress()} by {instr}, flow type: {instr.getFlowType()}")
-                new_block = Block(last_instr_address, instr.getMaxAddress(), "Data", block.section_name)
+                new_block = Block(last_instr_address, instr.getMaxAddress(), block.type, block.section_name)
                 new_block.pseudo_instrs = block.pseudo_instrs[last_instr_idx:idx + 1]
                 new_block.failed_disasm_flg = None in new_block.pseudo_instrs
                 splited_blocks.append(new_block)
@@ -231,7 +265,7 @@ def split_data_blocks(blocks: list[Block]) -> list[Block]:
                 last_instr_address = instr.getMaxAddress().add(1)
         # Append any remaining instructions as a new block
         if last_instr_idx < len(block.pseudo_instrs):
-            new_block = Block(last_instr_address, block.end_address, "Data", block.section_name)
+            new_block = Block(last_instr_address, block.end_address, block.type, block.section_name)
             new_block.pseudo_instrs = block.pseudo_instrs[last_instr_idx:]
             splited_blocks.append(new_block)
             new_block.failed_disasm_flg = None in new_block.pseudo_instrs
@@ -506,22 +540,22 @@ def check_compare_branch(blocks: list[Block], program: Program) -> None:
 #                 defs[d] = i
 #     return
 
-def check_very_short(blocks: list[Block]) -> None:
-    """
-    Check if the block is very short, i.e., less than 3 instruction (12 bytes).
-    This function will set the `very_short_flg` attribute of the block.
-    Args:
-        blocks (list[Block]): The list of blocks to analyze.
-    Returns:
-        None: The blocks will be updated in place with their very short flags.
-    """
-    for block in blocks:
-        if block.end_address.subtract(block.start_address) <= 12:
-            block.very_short_flg = True
-            block.type = "Code" if block.type == "Data" else "Data"
-        else:
-            block.very_short_flg = False
-    return
+# def check_very_short(blocks: list[Block]) -> None:
+#     """
+#     Check if the block is very short, i.e., less than 3 instruction (12 bytes).
+#     This function will set the `very_short_flg` attribute of the block.
+#     Args:
+#         blocks (list[Block]): The list of blocks to analyze.
+#     Returns:
+#         None: The blocks will be updated in place with their very short flags.
+#     """
+#     for block in blocks:
+#         if block.end_address.subtract(block.start_address) <= 12:
+#             block.very_short_flg = True
+#             block.type = "Code" if block.type == "Data" else "Data"
+#         else:
+#             block.very_short_flg = False
+#     return
 
 def generate_embeddings_from_feature_vector(blocks: list[Block]) -> torch.Tensor:
     """

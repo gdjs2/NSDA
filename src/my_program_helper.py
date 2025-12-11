@@ -85,4 +85,14 @@ class MyProgram:
         block_embeddings = self.embeddings[matched_blocks_idx]
         return ltn.Variable(f"{field}_{val}_id", block_embeddings)
 
+    def dump_blocks(self: Self, dump_path: str) -> None:
+        """
+        Dump the blocks information to a specified file.
+        Args:
+            dump_path (str): The path to the file where blocks information will be dumped.
+        """
+        with open(dump_path, "w") as f:
+            for block in self.blocks:
+                f.write(f"Block: {repr(block)}\n")
+
 

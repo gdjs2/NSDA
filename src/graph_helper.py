@@ -63,7 +63,7 @@ def _get_call_edges(blocks: list[Block], listing: Listing) -> list[tuple[Block, 
     blocks.sort(key=lambda b: b.start_address)
 
     for block in blocks:
-        if block.type == "Data": continue
+        if block.type != 'Code': continue
         addr_set = AddressSet(block.start_address, block.end_address)
         instructions = listing.getInstructions(addr_set, True)
         for instr in instructions:

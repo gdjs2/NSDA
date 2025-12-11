@@ -20,10 +20,10 @@ def redisasemble(
     flg = True
     with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
         for block, emb in zip(my_program.blocks, my_program.embeddings):
-            if CodeBlock(ltn.Constant(emb)).value >= 0.5 and block.type == "Data" and not block.failed_disasm_flg:
+            if CodeBlock(ltn.Constant(emb)).value >= .50 and block.type != "Code" and not block.failed_disasm_flg:
                 flat_api.clearListing(block.start_address, block.end_address)
-            if flat_api.disassemble(block.start_address):
-                flg = False
+                if flat_api.disassemble(block.start_address):
+                    flg = False
             # logger.debug(f"Re-disassembled block {block.start_address} in {binary_path}")
     return flg
 

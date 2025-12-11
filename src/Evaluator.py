@@ -103,7 +103,7 @@ class ProbNSDAEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], without_nn=True)
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args.get("keep_ghidra_prj", False), keep_ghidra_prj_path=args.get("keep_ghidra_prj_path"), without_nn=True)
     
 @register_evaluator
 class GhidraEvaluator(Evaluator):
@@ -142,9 +142,12 @@ class GhidraEvaluator(Evaluator):
             my_program = MyProgram(flat_api, base=base)
 
         process_time = (datetime.now() - start_time).total_seconds()
-        if args["keep_ghidra_prj"] and args["keep_ghidra_prj_path"]: 
+        if args.get("keep_ghidra_prj") and args.get("keep_ghidra_prj_path"): 
             save_ghidra_cache(binary_path, args["keep_ghidra_prj_path"], "ghidra")
         else: delete_ghidra_cache(binary_path)
+
+        if args.get("dump_blocks_path") is not None:
+            my_program.dump_blocks(args["dump_blocks_path"])
 
         tp = fp = fn = 0
         error_code_list = []
