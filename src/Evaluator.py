@@ -12,6 +12,7 @@ class Evaluator(ABC):
         self, 
         binary_path: str,
         base: int | None, 
+        language: str,
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
@@ -46,6 +47,7 @@ class NSDAEvaluator(Evaluator):
         self, 
         binary_path: str,
         base: int | None,
+        language: str,
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
@@ -71,7 +73,7 @@ class NSDAEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"])
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], language=language)
 
 @register_evaluator
 class ProbNSDAEvaluator(Evaluator):
@@ -79,6 +81,7 @@ class ProbNSDAEvaluator(Evaluator):
         self,
         binary_path: str,
         base: int,
+        language: str,
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
@@ -103,7 +106,7 @@ class ProbNSDAEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args.get("keep_ghidra_prj", False), keep_ghidra_prj_path=args.get("keep_ghidra_prj_path"), without_nn=True)
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args.get("keep_ghidra_prj", False), keep_ghidra_prj_path=args.get("keep_ghidra_prj_path"), without_nn=True, language=language)
     
 @register_evaluator
 class GhidraEvaluator(Evaluator):
@@ -111,6 +114,7 @@ class GhidraEvaluator(Evaluator):
         self, 
         binary_path: str,
         base: int | None,
+        language: str,
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
@@ -138,7 +142,7 @@ class GhidraEvaluator(Evaluator):
         
         delete_ghidra_cache(binary_path)
         start_time = datetime.now()
-        with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
+        with pyghidra.open_program(binary_path, language=language) as flat_api:
             my_program = MyProgram(flat_api, base=base)
 
         process_time = (datetime.now() - start_time).total_seconds()
@@ -177,6 +181,7 @@ class LoadstarEvaluator(Evaluator):
         self, 
         binary_path: str,
         base: int,
+        language: str,
         code_set: set[int],
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:

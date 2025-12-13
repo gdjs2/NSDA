@@ -44,12 +44,14 @@ def _eval_data(
     evaluator: Evaluator,
     data: Data, 
     base: int | None,
+    language: str,
     args: dict,
 ) -> tuple[float, float, float, float, float, list[int], list[int]]:
     return evaluator.evaluate(
         binary_path=data.binary_path,
         code_set=data.code_set,
         base=base,
+        language=language,
         args=args
     )
 
@@ -57,6 +59,7 @@ def _eval_dataset(
     evaluators: dict,
     data: dict[str, Data], 
     base: int | None,
+    language: str = "ARM:LE:32:v5",
     subset: set[str] | None = None,
 ) -> dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]:   # [code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list]
     if subset is None: logger.info(f"Evaluating dataset with {len(data)} samples.")
@@ -76,6 +79,7 @@ def _eval_dataset(
                 evaluator,
                 data_instance,
                 base=base,
+                language=language,
                 args=args
             )
             results[evaluator_name][data_name] = (code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list)
@@ -109,6 +113,7 @@ def _eval_datasets(
             evaluators,
             data, 
             base=dataset_config.get("base", None),
+            language=dataset_config.get("language", None),
             subset=None if not subset_flg else set(dataset_config.get("subset", []))
         )
     return results

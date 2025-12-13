@@ -167,3 +167,46 @@ class ARMCoreutilsDataLoader(DataLoader):
                 subset=None
             )
         return data_dict
+
+@register_dataloader
+class MIPSCoreutilsDataLoader(DataLoader):
+    """
+    DataLoader for the MIPS Coreutils dataset.
+    """
+    def load(self, coreutils_mips_home: str) -> dict[str, Data] | None:
+        """
+        Load data from the MIPS Coreutils dataset home directory.
+        
+        :param self: The instance of the MIPSCoreutilsDataLoader class.
+        :param coreutils_mips_home: The path to the MIPS Coreutils dataset home directory.
+        :type coreutils_mips_home: str
+        :return: A dictionary mapping data names to Data instances, or None if loading fails.
+        :rtype: dict[str, Data] | None
+        """
+        home = Path(coreutils_mips_home)
+        binary_path = home / "build-output-mips" / "stripped" / "usr" / "local" / "bin"
+        label_path = home / "build-output-mips" / "labels"
+        binaries = list(binary_path.glob("*"))
+
+        data_dict = {}
+        for b in binaries:
+            stem = b.stem
+            label_file = label_path / f"{stem}.csv"
+            if not label_file.exists():
+                logger.warning(f"Label file {label_file} does not exist. Skipping.")
+                continue
+            with open(label_file, "r") as f:
+                reader = csv.reader(f)
+                reader.__next__()
+                code_set = set()
+                for row in reader:
+                    if row[3] == "0":
+                        code_set.add(int(row[0], 16))
+            
+            data_dict[b.name] = Data(
+                name=b.name,
+                binary_path=str(b),
+                code_set=code_set,
+                subset=None
+            )
+        return data_dict
