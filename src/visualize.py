@@ -6,7 +6,7 @@ from collections import defaultdict
 # ------------------------------
 # Load Data
 # ------------------------------
-JSON_FILE = "/home/zhaoqi.xiao/Projects/NSDA/eval_results/20251207_081707.json"
+JSON_FILE = "/home/zhaoqi.xiao/Projects/NSDA/eval_results/20251213_034430.json"
 
 with open(JSON_FILE, "r") as f:
     data = json.load(f)
@@ -48,6 +48,7 @@ def f1(p, r):
 colors = {
     "Ghidra":   "#4E79A7",  # Blue
     "NSDA":     "#59A14F",  # Green
+    "ProbNSDA": "#F28F2B28",  # Orange
     "Loadstar": "#E15759",  # Red
 }
 
@@ -115,4 +116,4 @@ for row, (dataset, subset) in enumerate(datasets):
     axes[row, 2].set_ylabel("F1")
 
 plt.tight_layout()
-plt.savefig("evaluation_plots.png", dpi=300)
+plt.savefig("mips32.png", dpi=300)
