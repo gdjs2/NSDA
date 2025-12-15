@@ -1,20 +1,22 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
 # eval_type = "Subset Evaluation"
-eval_type = "Dataset Evaluation"
+eval_type = "Subset Evaluation"
 # datasets = ["Loadstar"]
 # datasets = ["Loadstar", "arm32_coreutils"]
-# datasets = ["arm32_coreutils"]
+# datasets = ["arm32_coreutils", "mips_coreutils"]
 datasets = ["mips_coreutils"]
 dump_json = true
 dump_error_list = false
 result_path = "./eval_results"
 # evaluator = ["Loadstar"]
-evaluator = ["NSDA", "Ghidra"]
+# evaluator = ["NSDA", "Ghidra"]
 # evaluator = ["Ghidra", "NSDA", "Loadstar", "ProbNSDA"]
 # evaluator = ["Ghidra", "NSDA", "ProbNSDA"]
 # evaluator = ["Ghidra"]
 # evaluator = ["ProbNSDA"]
+evaluator = ["Ddisasm", "Ghidra", "NSDA"]
+
 
 log_file = "stderr"
 log_level = "info"
@@ -33,7 +35,7 @@ base = 0x10000
 language = "ARM:LE:32:v5"
 
 [dataset.mips_coreutils]
-path = "./Datasets/coreutils-mips32"
+path = "./Datasets/coreutils-mips"
 loader = "MIPSCoreutilsDataLoader"
 subset = ["base64"]
 base = 0x400000
@@ -68,3 +70,6 @@ batch_size = 128
 vocab_size = 651997
 embedding_dim = 128
 lstm_units = 64
+
+[evaluator.ddisasm]
+

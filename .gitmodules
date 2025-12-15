@@ -4,3 +4,6 @@
 [submodule "Datasets/coreutils-arm"]
 	path = Datasets/coreutils-arm
 	url = git@github.com:Q1IQ/coreutils-arm.git
+[submodule "Datasets/coreutils-mips"]
+	path = Datasets/coreutils-mips
+	url = https://github.com/gdjs2/coreutils-mips.git

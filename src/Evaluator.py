@@ -335,3 +335,70 @@ class LoadstarEvaluator(Evaluator):
         r2.quit()
         
         return code_precision, code_recall, process_time, inference_time, 0.0, error_code_list, error_data_list
+
+@register_evaluator
+class DdisasmEvaluator(Evaluator):
+    def __init__(self):
+        import tempfile
+        from pathlib import Path
+
+        self.workdir = Path(tempfile.gettempdir())
+        self.workdir.mkdir(parents=True, exist_ok=True)
+    
+    def evaluate(
+            self,
+            binary_path: str,
+            base: int,
+            language: str,
+            code_set: set[int],
+            args: dict
+    ) -> tuple[float, float, float, float, float, list[int], list[int]]:
+        import gtirb
+        import ddisasm
+        import subprocess
+        from datetime import datetime
+        from pathlib import Path
+
+        STEP = 4
+
+        binary_name = Path(binary_path).stem
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        ir_file = self.workdir / f"{binary_name}_{timestamp}.gtirb"
+        
+        start_time = datetime.now()
+        with ddisasm.ddisasm_path() as tool_path:
+            cmd = [tool_path, "--ir", str(ir_file), binary_path]
+            subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        process_time = (datetime.now() - start_time).total_seconds()
+
+        ir = gtirb.ir.IR.load_protobuf(ir_file)
+        predict_codeset = set()
+        predict_dataset = set()
+        for codeblock in ir.code_blocks:
+            if codeblock.address is None:
+                logger.warning("Ddisasm detects codeblock without start address")
+                continue
+            for addr in range(codeblock.address, codeblock.address + codeblock.size, STEP):
+                predict_codeset.add(addr)
+
+        for datablock in ir.data_blocks:
+            if datablock.address is None:
+                logger.warning("Ddisasm detects datablock without start address")
+                continue
+            for addr in range(datablock.address, datablock.address + datablock.size, STEP):
+                predict_dataset.add(addr)
+
+        tp = len(predict_codeset & code_set)
+        fp = len(predict_codeset - code_set)
+        fn = len(code_set - predict_codeset)
+        code_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        code_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+
+        error_code_list = list(predict_codeset - code_set)
+        error_data_list = list(predict_dataset & code_set)
+
+        return code_precision, code_recall, process_time, 0.0, 0.0, error_code_list, error_data_list
+
+
+        
