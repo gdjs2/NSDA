@@ -7,3 +7,6 @@
 [submodule "Datasets/coreutils-mips"]
 	path = Datasets/coreutils-mips
 	url = https://github.com/gdjs2/coreutils-mips.git
+[submodule "Datasets/coreutils-arm-llvm"]
+	path = Datasets/coreutils-arm-llvm
+	url = git@github.com:gdjs2/coreutils-arm-llvm.git
