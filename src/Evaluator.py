@@ -49,7 +49,7 @@ class NSDAEvaluator(Evaluator):
         base: int | None,
         language: str,
         code_set: set[int],
-        args: dict
+        args: dict,
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
         NSDA Evaluator. 
@@ -83,7 +83,7 @@ class ProbNSDAEvaluator(Evaluator):
         base: int,
         language: str,
         code_set: set[int],
-        args: dict
+        args: dict,
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
         Probabilistic NSDA Evaluator without neural network.
@@ -116,7 +116,7 @@ class GhidraEvaluator(Evaluator):
         base: int | None,
         language: str,
         code_set: set[int],
-        args: dict
+        args: dict,
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
         Ghidra Evaluator.
@@ -162,6 +162,7 @@ class GhidraEvaluator(Evaluator):
             # space = block.start_address.getAddressSpace()
             if block.start_address.getAddressSpace().getType() != AddressSpace.TYPE_RAM:
                 break
+
             block_offsets = set(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
             hits = block_offsets & code_set
             if block.type == "Code":

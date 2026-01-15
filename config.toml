@@ -1,24 +1,25 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
 # eval_type = "Subset Evaluation"
-eval_type = "Subset Evaluation"
+eval_type = "Dataset Evaluation"
 # datasets = ["Loadstar"]
-# datasets = ["Loadstar", "arm32_coreutils"]
-# datasets = ["arm32_coreutils", "mips_coreutils"]
 datasets = ["mips_coreutils"]
+# datasets = ["arm32_coreutils", "mips_coreutils"]
+# datasets = ["mips_coreutils"]
 dump_json = true
 dump_error_list = false
 result_path = "./eval_results"
 # evaluator = ["Loadstar"]
 # evaluator = ["NSDA", "Ghidra"]
-# evaluator = ["Ghidra", "NSDA", "Loadstar", "ProbNSDA"]
+# evaluator = ["Ghidra", "NSDA", "ProbNSDA", "Ddisasm"]
 # evaluator = ["Ghidra", "NSDA", "ProbNSDA"]
 # evaluator = ["Ghidra"]
-# evaluator = ["ProbNSDA"]
-evaluator = ["Ddisasm", "Ghidra", "NSDA"]
+evaluator = ["ProbNSDA"]
+# evaluator = ["Ghidra", "NSDA"]
 
 
-log_file = "stderr"
+log_file = "./mips-probnsda.log"
+# log_file = "stderr"
 log_level = "info"
 
 [dataset.loadstar]
@@ -34,11 +35,26 @@ subset = ["base64"]
 base = 0x10000
 language = "ARM:LE:32:v5"
 
+[dataset.arm32_coreutils_llvm]
+path = "./Datasets/coreutils-arm-llvm"
+loader = "ARMCoreutilsDataLoader"
+subset = ["base64"]
+base = 0x10000
+language = "ARM:LE:32:v5"
+llvm_arm32 = true
+
 [dataset.mips_coreutils]
 path = "./Datasets/coreutils-mips"
 loader = "MIPSCoreutilsDataLoader"
 subset = ["base64"]
 base = 0x400000
+language = "MIPS:BE:32:default"
+
+[dataset.mips_coreutils_llvm]
+path = "./Datasets/coreutils-mips-llvm"
+loader = "MIPSCoreutilsDataLoader"
+subset = ["base64"]
+base = 0x000000
 language = "MIPS:BE:32:default"
 
 [evaluator.nsda]
@@ -47,18 +63,15 @@ epoches_limit = 500
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
 
-
 [evaluator.probnsda]
 iteration_limit = 1
 epoches_limit = 2000
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
-language = "MIPS:BE:32:default"
 
 [evaluator.ghidra]
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
-language = "MIPS:BE:32:default"
 # dump_blocks_path = "./blocks.txt" # Debug use
 
 [evaluator.loadstar]

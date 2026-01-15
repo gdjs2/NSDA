@@ -16,7 +16,7 @@ class MyProgram:
         
         program = flat_api.getCurrentProgram()
 
-        if base:
+        if base is not None:
             address_factory = program.getAddressFactory()
             default_space = address_factory.getDefaultAddressSpace()
             new_base_address = default_space.getAddress(base)

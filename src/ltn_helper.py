@@ -92,7 +92,7 @@ def train(
 
 def evaluate(
     my_program: MyProgram,
-    code_set: set[int]
+    code_set: set[int],
 ) -> tuple[float, float, list[int], list[int]]:
     
     tp = fp = fn = 0

@@ -45,7 +45,7 @@ def _eval_data(
     data: Data, 
     base: int | None,
     language: str,
-    args: dict,
+    args: dict
 ) -> tuple[float, float, float, float, float, list[int], list[int]]:
     return evaluator.evaluate(
         binary_path=data.binary_path,
