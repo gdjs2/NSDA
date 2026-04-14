@@ -1,24 +1,24 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
-# eval_type = "Subset Evaluation"
-eval_type = "Dataset Evaluation"
-# datasets = ["Loadstar"]
-datasets = ["mips_coreutils"]
-# datasets = ["arm32_coreutils", "mips_coreutils"]
+eval_type = "Subset Evaluation"
+# eval_type = "Dataset Evaluation"
+datasets = ["Loadstar"]
+# datasets = ["arm32_coreutils_llvm"]
+# datasets = ["arm32_coreutils"]
 # datasets = ["mips_coreutils"]
 dump_json = true
-dump_error_list = false
+dump_error_list = true
 result_path = "./eval_results"
 # evaluator = ["Loadstar"]
-# evaluator = ["NSDA", "Ghidra"]
+evaluator = ["NSDA", "NSDAWoRules"]
 # evaluator = ["Ghidra", "NSDA", "ProbNSDA", "Ddisasm"]
 # evaluator = ["Ghidra", "NSDA", "ProbNSDA"]
 # evaluator = ["Ghidra"]
-evaluator = ["ProbNSDA"]
+# evaluator = ["ProbNSDA"]
 # evaluator = ["Ghidra", "NSDA"]
 
 
-log_file = "./mips-probnsda.log"
+log_file = "./nsdaworules.log"
 # log_file = "stderr"
 log_level = "info"
 
@@ -27,19 +27,21 @@ path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
 subset = ["acos_fbd.app"]
 base = 0x0
+language = "ARM:LE:32:v5"
 
 [dataset.arm32_coreutils]
 path = "./Datasets/coreutils-arm"
 loader = "ARMCoreutilsDataLoader"
-subset = ["base64"]
+# subset = ["base64"]
+subset = ["readlink"]
 base = 0x10000
 language = "ARM:LE:32:v5"
 
 [dataset.arm32_coreutils_llvm]
 path = "./Datasets/coreutils-arm-llvm"
 loader = "ARMCoreutilsDataLoader"
-subset = ["base64"]
-base = 0x10000
+subset = ["tsort"]
+base = 0x0
 language = "ARM:LE:32:v5"
 llvm_arm32 = true
 
@@ -60,7 +62,13 @@ language = "MIPS:BE:32:default"
 [evaluator.nsda]
 iteration_limit = 5
 epoches_limit = 500
-keep_ghidra_prj = false
+keep_ghidra_prj = true
+keep_ghidra_prj_path = "./saved_ghidra_prjs"
+
+[evaluator.nsdaworules]
+iteration_limit = 5
+epoches_limit = 500
+keep_ghidra_prj = true
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
 
 [evaluator.probnsda]

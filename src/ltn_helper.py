@@ -8,7 +8,8 @@ from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMi
 def train(
         my_program: MyProgram,
         CodeBlock: ltn.Predicate|None = None, 
-        epochs: int = 1000
+        epochs: int = 1000,
+        wo_rules: bool = False,
     ) -> tuple[ltn.Predicate, float]:
     """
     Single iteration of training
@@ -60,20 +61,23 @@ def train(
             sat_agg_list.append(Forall([disasm_gt_cb], CodeBlock(disasm_gt_cb)))
         if disasm_gt_db:
             sat_agg_list.append(Forall([disasm_gt_db], Not(CodeBlock(disasm_gt_db))))
-        if cond_brch_t:
-            sat_agg_list.append(Forall([cond_brch_t], CodeBlock(cond_brch_t)))
-        if cond_brch_f:
-            sat_agg_list.append(Forall([cond_brch_f], Not(CodeBlock(cond_brch_f))))
-        if high_zero_rate:
-            sat_agg_list.append(Forall([high_zero_rate], Not(CodeBlock(high_zero_rate))))
-        if x_ft and y_ft:
-            sat_agg_list.append(Forall([x_ft, y_ft], Implies(CodeBlock(x_ft), CodeBlock(y_ft))))
-        if x_call and y_call:
-            sat_agg_list.append(Forall([x_call, y_call], Equiv(CodeBlock(x_call), CodeBlock(y_call))))
-        if high_cont_printable_char_rate:
-            sat_agg_list.append(Forall([high_cont_printable_char_rate], Not(CodeBlock(high_cont_printable_char_rate))))
-        if failed_disasm:
-            sat_agg_list.append(Forall([failed_disasm], Not(CodeBlock(failed_disasm))))
+        if wo_rules:
+            pass
+        else:
+            if cond_brch_t:
+                sat_agg_list.append(Forall([cond_brch_t], CodeBlock(cond_brch_t)))
+            if cond_brch_f:
+                sat_agg_list.append(Forall([cond_brch_f], Not(CodeBlock(cond_brch_f))))
+            if high_zero_rate:
+                sat_agg_list.append(Forall([high_zero_rate], Not(CodeBlock(high_zero_rate))))
+            if x_ft and y_ft:
+                sat_agg_list.append(Forall([x_ft, y_ft], Implies(CodeBlock(x_ft), CodeBlock(y_ft))))
+            if x_call and y_call:
+                sat_agg_list.append(Forall([x_call, y_call], Equiv(CodeBlock(x_call), CodeBlock(y_call))))
+            if high_cont_printable_char_rate:
+                sat_agg_list.append(Forall([high_cont_printable_char_rate], Not(CodeBlock(high_cont_printable_char_rate))))
+            if failed_disasm:
+                sat_agg_list.append(Forall([failed_disasm], Not(CodeBlock(failed_disasm))))
 
         sat_agg = SatAgg(*sat_agg_list)
 

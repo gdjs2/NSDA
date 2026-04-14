@@ -54,6 +54,7 @@ def iterative_training(
     keep_ghidra_prj_path: str | None = None,
     without_nn: bool = False,
     language: str = "ARM:LE:32:v5",
+    without_rules: bool = False
 ) -> tuple[float, float, float, float, float, list[int], list[int]]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
     finish_flg = False
     iteration_cnt = 0
@@ -70,7 +71,7 @@ def iterative_training(
         preprocess_time = (datetime.now() - preprocess_start_time).total_seconds()
         logger.info(f"Program preprocessed in {preprocess_time:.2f}s with {len(my_program.blocks)} blocks")
         training_start_time = datetime.now()
-        CodeBlock, _ = train(my_program, CodeBlock, epoches_limit)
+        CodeBlock, _ = train(my_program, CodeBlock, epoches_limit, wo_rules=without_rules)
         total_training_time += (datetime.now() - training_start_time).total_seconds()
         redisasemble_start_time = datetime.now()
         finish_flg = redisasemble(CodeBlock, binary_path, my_program)
