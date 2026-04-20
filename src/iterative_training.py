@@ -5,6 +5,8 @@ from ltn_helper import *
 from pathlib import Path
 from datetime import datetime
 
+from rich.spinner import Spinner
+
 results = []
 
 geomean = lambda x: math.exp(sum(map(math.log, x)) / len(x))
@@ -20,7 +22,7 @@ def redisasemble(
     flg = True
     with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
         for block, emb in zip(my_program.blocks, my_program.embeddings):
-            if CodeBlock(ltn.Constant(emb)).value >= .50 and block.type != "Code" and not block.failed_disasm_flg:
+            if CodeBlock(ltn.Constant(emb)).value >= .50 and block.type != "Code" and not block.failed_disasm_flg and block.is_executable:
                 flat_api.clearListing(block.start_address, block.end_address)
                 if flat_api.disassemble(block.start_address):
                     flg = False
@@ -54,7 +56,8 @@ def iterative_training(
     keep_ghidra_prj_path: str | None = None,
     without_nn: bool = False,
     language: str = "ARM:LE:32:v5",
-    without_rules: bool = False
+    without_rules: bool = False,
+    spinner: Spinner | None = None
 ) -> tuple[float, float, float, float, float, list[int], list[int]]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
     finish_flg = False
     iteration_cnt = 0
@@ -66,12 +69,17 @@ def iterative_training(
         CodeBlock = None
         iteration_cnt += 1
         preprocess_start_time = datetime.now()
+
+        if spinner: spinner.update(text=f"[bold yellow]Iteration {iteration_cnt}/{iteration_limit} Preprocessing program. ")
+
         with pyghidra.open_program(binary_path, language=language) as flat_api:
             my_program = MyProgram(flat_api, base=base, without_nn=without_nn)
         preprocess_time = (datetime.now() - preprocess_start_time).total_seconds()
+
         logger.info(f"Program preprocessed in {preprocess_time:.2f}s with {len(my_program.blocks)} blocks")
+
         training_start_time = datetime.now()
-        CodeBlock, _ = train(my_program, CodeBlock, epoches_limit, wo_rules=without_rules)
+        CodeBlock, _ = train(my_program, CodeBlock, epoches_limit, wo_rules=without_rules, spinner=spinner)
         total_training_time += (datetime.now() - training_start_time).total_seconds()
         redisasemble_start_time = datetime.now()
         finish_flg = redisasemble(CodeBlock, binary_path, my_program)

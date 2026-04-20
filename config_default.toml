@@ -4,10 +4,11 @@ eval_type = "Dataset Evaluation"
 dump_json = true
 dump_error_list = true
 result_path = "./eval_results"
-log_file = "/tmp/nsda.log"
+log_file = "./nsda_eval.log"
 log_level = "info"
-datasets = [ "loadstar",]
-evaluator = [ "nsda",]
+
+datasets = ["openssl_x64"]
+evaluator = [ "nsda", "nsdaworules", "probnsda", "ghidra", "ddisasm",]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
@@ -44,7 +45,7 @@ llvm_arm32 = true
 [dataset.openssl_x64]
 path = "./Datasets/OpenSSL-x64"
 loader = "OpensslDataLoader"
-base = 4194304
+base = 0x400000
 language = "x86:LE:64:default"
 
 [evaluator.nsda]

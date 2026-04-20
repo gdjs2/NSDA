@@ -13,3 +13,6 @@
 [submodule "Datasets/coreutils-mips-llvm"]
 	path = Datasets/coreutils-mips-llvm
 	url = git@github.com:gdjs2/coreutils-mips-llvm.git
+[submodule "Datasets/OpenSSL-x64"]
+	path = Datasets/OpenSSL-x64
+	url = git@github.com:gdjs2/OpenSSL-x64.git

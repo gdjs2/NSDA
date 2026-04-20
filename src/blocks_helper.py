@@ -56,7 +56,8 @@ class Block:
             start_address: Address, 
             end_address: Address, 
             type: Literal["Code", "Data", "Unknown"], 
-            section_name: str
+            section_name: str,
+            is_executable: bool 
         ) -> None:
         """
         Initializes a Block instance.
@@ -65,11 +66,13 @@ class Block:
             end_address (Address): The ending address of the block.
             type (str): The type of the block, either "Code" or "Data".
             section_name (str): The name of the section the block belongs to.
+            is_executable (bool): Flag indicating if the block is executable.
         """
         self.start_address: Address = start_address
         self.end_address: Address = end_address
         self.type: Literal["Code", "Data", "Unknown"] = type
         self.section_name: str = section_name
+        self.is_executable: bool = is_executable
         self.cond_branch_flg: bool|None = None
         self.def_use_flg: bool|None = None
         self.very_short_flg: bool|None = None
@@ -126,6 +129,8 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
         addr = mmry_blk.getStart()
         blk_end_addr = mmry_blk.getEnd().subtract(1)
 
+        is_executable = mmry_blk.isExecute()
+
         in_code_block = False
         code_start = None
 
@@ -143,13 +148,13 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
                 # Close any ongoing data block
                 if in_data_block:
                     block_end = code_unit.getMinAddress().subtract(1)
-                    blocks.append(Block(data_start, block_end, "Data", mmry_blk.getName()))
+                    blocks.append(Block(data_start, block_end, "Data", mmry_blk.getName(), is_executable))
                     in_data_block = False
                     data_start = None
                 
                 if in_unknown_block:
                     block_end = code_unit.getMinAddress().subtract(1)
-                    blocks.append(Block(unknown_start, block_end, "Unknown", mmry_blk.getName()))
+                    blocks.append(Block(unknown_start, block_end, "Unknown", mmry_blk.getName(), is_executable))
                     in_unknown_block = False
                     unknown_start = None
 
@@ -161,7 +166,7 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
 
                 if flow_type is not None and (flow_type.isCall() or flow_type.isJump() or flow_type.isTerminal()):
                     block_end = code_unit.getMaxAddress()
-                    blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName()))
+                    blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName(), is_executable))
                     in_code_block = False
                     code_start = None
 
@@ -170,13 +175,13 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
                     # Close any ongoing code block
                     if in_code_block:
                         block_end = code_unit.getMinAddress().subtract(1)
-                        blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName()))
+                        blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName(), is_executable))
                         in_code_block = False
                         code_start = None
 
                     if in_data_block:
                         block_end = code_unit.getMinAddress().subtract(1)
-                        blocks.append(Block(data_start, block_end, "Data", mmry_blk.getName()))
+                        blocks.append(Block(data_start, block_end, "Data", mmry_blk.getName(), is_executable))
                         in_data_block = False
                         data_start = None
 
@@ -187,13 +192,13 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
                     # Close any ongoing code block
                     if in_code_block:
                         block_end = code_unit.getMinAddress().subtract(1)
-                        blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName()))
+                        blocks.append(Block(code_start, block_end, "Code", mmry_blk.getName(), is_executable))
                         in_code_block = False
                         code_start = None
 
                     if in_unknown_block:
                         block_end = code_unit.getMinAddress().subtract(1)
-                        blocks.append(Block(unknown_start, block_end, "Unknown", mmry_blk.getName()))
+                        blocks.append(Block(unknown_start, block_end, "Unknown", mmry_blk.getName(), is_executable))
                         in_unknown_block = False
                         unknown_start = None
 
@@ -205,11 +210,11 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
 
         # Handle block at the very end
         if in_code_block:
-            blocks.append(Block(code_start, blk_end_addr, "Code", mmry_blk.getName()))
+            blocks.append(Block(code_start, blk_end_addr, "Code", mmry_blk.getName(), is_executable))
         if in_data_block:
-            blocks.append(Block(data_start, blk_end_addr, "Data", mmry_blk.getName()))
+            blocks.append(Block(data_start, blk_end_addr, "Data", mmry_blk.getName(), is_executable))
         if in_unknown_block:
-            blocks.append(Block(unknown_start, blk_end_addr, "Unknown", mmry_blk.getName()))
+            blocks.append(Block(unknown_start, blk_end_addr, "Unknown", mmry_blk.getName(), is_executable))
 
     return blocks
 
@@ -223,6 +228,7 @@ def pseudo_disassemble_blocks(blocks: list[Block], program: Program) -> None:
         None: The blocks will be updated in place with their pseudo instructions.
     """
     pseudo_disassembler = PseudoDisassembler(program)
+    alignment = program.getLanguage().getInstructionAlignment()
     for block in blocks:
         ctx = PseudoDisassemblerContext(program.getProgramContext())
         # tmode_reg = program.getRegister("TMode")
@@ -239,7 +245,7 @@ def pseudo_disassemble_blocks(blocks: list[Block], program: Program) -> None:
                 addr = instr.getMaxAddress().next()
             else:
                 block.failed_disasm_flg = True
-                addr = addr.add(4) # TODO: double check here 
+                addr = addr.add(alignment)
         if block.failed_disasm_flg is None:
             block.failed_disasm_flg = False
         block.pseudo_instrs = instrs
@@ -257,7 +263,7 @@ def split_data_blocks(blocks: list[Block]) -> list[Block]:
             flow_type = instr.getFlowType()
             if flow_type is not None and (flow_type.isCall() or flow_type.isJump() or flow_type.isTerminal()):
                 # logger.debug(f"Split {block} @ {instr.getMaxAddress()} by {instr}, flow type: {instr.getFlowType()}")
-                new_block = Block(last_instr_address, instr.getMaxAddress(), block.type, block.section_name)
+                new_block = Block(last_instr_address, instr.getMaxAddress(), block.type, block.section_name, block.is_executable)
                 new_block.pseudo_instrs = block.pseudo_instrs[last_instr_idx:idx + 1]
                 new_block.failed_disasm_flg = None in new_block.pseudo_instrs
                 splited_blocks.append(new_block)
@@ -265,7 +271,7 @@ def split_data_blocks(blocks: list[Block]) -> list[Block]:
                 last_instr_address = instr.getMaxAddress().add(1)
         # Append any remaining instructions as a new block
         if last_instr_idx < len(block.pseudo_instrs):
-            new_block = Block(last_instr_address, block.end_address, block.type, block.section_name)
+            new_block = Block(last_instr_address, block.end_address, block.type, block.section_name, block.is_executable)
             new_block.pseudo_instrs = block.pseudo_instrs[last_instr_idx:]
             splited_blocks.append(new_block)
             new_block.failed_disasm_flg = None in new_block.pseudo_instrs

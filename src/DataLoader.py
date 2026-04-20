@@ -1,4 +1,5 @@
 import csv
+import blocks_pb2
 
 from bitarray import bitarray
 from pathlib import Path
@@ -203,6 +204,50 @@ class MIPSCoreutilsDataLoader(DataLoader):
                     if row[3] == "0":
                         code_set.add(int(row[0], 16))
             
+            data_dict[b.name] = Data(
+                name=b.name,
+                binary_path=str(b),
+                code_set=code_set,
+                subset=None
+            )
+        return data_dict
+
+@register_dataloader
+class OpensslDataLoader(DataLoader):
+    def load(self, openssl_home: str) -> dict[str, Data] | None:
+        """
+        Load data from the OpenSSL dataset home directory.
+        
+        :param self: The instance of the OpensslDataLoader class.
+        :param openssl_home: The path to the OpenSSL dataset home directory.
+        :type openssl_home: str
+        :return: A dictionary mapping data names to Data instances, or None if loading fails.
+        :rtype: dict[str, Data] | None
+        """
+        home = Path(openssl_home)
+        binary_path = home / "bins"
+        label_home = home / "labels"
+
+        binaries = list(binary_path.glob("*"))
+        data_dict = {}
+
+        for b in binaries:
+            stem = b.stem
+            label_file = label_home / f"gtBlock_{stem}.pb"
+            if not label_file.exists():
+                logger.warning(f"Ground truth file {label_file} does not exist. Skipping.")
+                continue
+            
+            code_set = set()
+            with open(label_file, "rb") as f:
+                parsed_data = blocks_pb2.module()
+                parsed_data.ParseFromString(f.read()) # type: ignore
+                for func in parsed_data.fuc: # type: ignore
+                    for bb in func.bb:
+                        for inst in bb.instructions:
+                            for offset in range(inst.size):
+                                code_set.add(inst.va + offset)
+
             data_dict[b.name] = Data(
                 name=b.name,
                 binary_path=str(b),

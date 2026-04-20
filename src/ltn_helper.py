@@ -3,6 +3,8 @@ from my_models import MLPClassifier
 from ltn import fuzzy_ops
 from datetime import datetime
 
+from rich.spinner import Spinner
+
 from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
 
 def train(
@@ -10,6 +12,7 @@ def train(
         CodeBlock: ltn.Predicate|None = None, 
         epochs: int = 1000,
         wo_rules: bool = False,
+        spinner: Spinner | None = None
     ) -> tuple[ltn.Predicate, float]:
     """
     Single iteration of training
@@ -84,8 +87,9 @@ def train(
         loss = 1. - sat_agg
         loss.backward()
         optimizer.step()
-        # if epoch % 100 == 0:
-        #     logger.info(f"Epoch {epoch}, Loss: {loss.item():.5f}")
+        if epoch % 100 == 0:
+            logger.info(f"Epoch {epoch}, Loss: {loss.item():.5f}")
+            if spinner: spinner.update(text=f"[bold yellow]Training... Epoch {epoch}/{epochs}, Loss: {loss.item():.2f}[/bold yellow]")
         if loss.item() < 0.01:
             logger.info(f"Early stopping at epoch {epoch}, Loss: {loss.item():.5f}")
             break

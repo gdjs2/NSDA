@@ -6,6 +6,8 @@ from bitarray import bitarray
 from datetime import datetime
 from EvaluatorRegistry import register_evaluator
 
+from rich.spinner import Spinner
+
 class Evaluator(ABC):
     @abstractmethod
     def evaluate(
@@ -14,6 +16,7 @@ class Evaluator(ABC):
         base: int | None, 
         language: str,
         code_set: set[int],
+        spinner: Spinner | None,
         args: dict
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
@@ -49,6 +52,7 @@ class NSDAEvaluator(Evaluator):
         base: int | None,
         language: str,
         code_set: set[int],
+        spinner: Spinner | None,
         args: dict,
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
@@ -73,7 +77,7 @@ class NSDAEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], language=language)
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], language=language, spinner=spinner)
 
 @register_evaluator
 class NSDAWoRulesEvaluator(Evaluator):
@@ -83,6 +87,7 @@ class NSDAWoRulesEvaluator(Evaluator):
         base: int | None,
         language: str,
         code_set: set[int],
+        spinner: Spinner | None,
         args: dict,
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
@@ -107,7 +112,7 @@ class NSDAWoRulesEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], language=language, without_rules=True)
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], language=language, without_rules=True, spinner=spinner)
 
 @register_evaluator
 class ProbNSDAEvaluator(Evaluator):
@@ -118,6 +123,7 @@ class ProbNSDAEvaluator(Evaluator):
         language: str,
         code_set: set[int],
         args: dict,
+        spinner: Spinner | None
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
         Probabilistic NSDA Evaluator without neural network.
@@ -140,7 +146,8 @@ class ProbNSDAEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         from iterative_training import iterative_training
-        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args.get("keep_ghidra_prj", False), keep_ghidra_prj_path=args.get("keep_ghidra_prj_path"), without_nn=True, language=language)
+        return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args.get("keep_ghidra_prj", False), keep_ghidra_prj_path=args.get("keep_ghidra_prj_path"), without_nn=True, language=language, spinner=spinner)
+
     
 @register_evaluator
 class GhidraEvaluator(Evaluator):
@@ -151,6 +158,7 @@ class GhidraEvaluator(Evaluator):
         language: str,
         code_set: set[int],
         args: dict,
+        spinner: Spinner | None
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
         Ghidra Evaluator.
@@ -218,7 +226,8 @@ class LoadstarEvaluator(Evaluator):
         base: int,
         language: str,
         code_set: set[int],
-        args: dict
+        args: dict,
+        spinner: Spinner | None
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         """
         Loadstar Evaluator.
@@ -386,7 +395,8 @@ class DdisasmEvaluator(Evaluator):
             base: int,
             language: str,
             code_set: set[int],
-            args: dict
+            args: dict,
+            spinner: Spinner | None
     ) -> tuple[float, float, float, float, float, list[int], list[int]]:
         import gtirb
         import ddisasm

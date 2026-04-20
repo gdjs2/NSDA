@@ -18,13 +18,22 @@ from Evaluator import Evaluator
 # logger.remove()
 # logger.add(sys.stderr, level="INFO")
 
+EVALUATOR_NAME_MAP = {
+    "nsda": "NSDA",
+    "ghidra": "Ghidra",
+    "nsdaworules": "NSDAWoRules",
+    "probnsda": "ProbNSDA",
+    "ddisasm": "Ddisasm",
+    "loadstar": "LoadStar",
+}
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="NSDA Evaluation")
     parser.add_argument(
         "-c",
         "--config",
         type=str,
-        default="config.toml",
+        default="config_default.toml",
         help="Path to the configuration TOML file."
     )
     return parser.parse_args()
@@ -52,7 +61,8 @@ def _eval_data(
         code_set=data.code_set,
         base=base,
         language=language,
-        args=args
+        args=args,
+        spinner=None
     )
 
 def _eval_dataset(
@@ -188,7 +198,7 @@ if __name__ == "__main__":
     # Load evaluators
     for evaluator_name in config["config"]["evaluator"]:
         evaluators[evaluator_name] = {
-            "cls": EVALUATOR_REGISTRY[f"{evaluator_name}Evaluator"](),
+            "cls": EVALUATOR_REGISTRY[f"{EVALUATOR_NAME_MAP[evaluator_name]}Evaluator"](),
             "args": config["evaluator"].get(evaluator_name.lower(), {})
         }
 
