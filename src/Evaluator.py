@@ -2,7 +2,6 @@ from loguru import logger
 import pyghidra
 
 from abc import ABC, abstractmethod
-from bitarray import bitarray
 from datetime import datetime
 from EvaluatorRegistry import register_evaluator
 
@@ -179,46 +178,92 @@ class GhidraEvaluator(Evaluator):
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
         import tempfile
+
+        from pathlib import Path
         from my_program_helper import MyProgram
         from iterative_training import delete_ghidra_cache, save_ghidra_cache
-        from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
+        from ghidra.program.model.address import AddressSpace # type: ignore
+        from ghidra.program.model.listing import Program, Instruction, CodeUnitIterator # type: ignore
         
+        auto_analyze_time = .0
+        total_process_time = .0
+
         ghidra_project_path = tempfile.mkdtemp(prefix="ghidra_project_")
+        logger.info(f"Created temporary Ghidra project at {ghidra_project_path}")
+        binary_name = Path(binary_path).stem
 
-        start_time = datetime.now()
-        with pyghidra.open_program(binary_path, project_location=ghidra_project_path, language=language) as flat_api:
-            my_program = MyProgram(flat_api, base=base)
+        code_results_set = set()
+        data_results_set = set()
 
-        process_time = (datetime.now() - start_time).total_seconds()
+# Loading binary and auto-analysis - Start ======================================================
+        loading_time = datetime.now()
+        with pyghidra.open_project(path=ghidra_project_path, name=binary_name, create=True) as project:
+            # Load binary program
+            from ghidra.program.flatapi import FlatProgramAPI  # type: ignore
+            loader = pyghidra.program_loader().project(project).source(binary_path).language(language)
+            if spinner: spinner.update(text=f"[bold yellow]Loading binary {binary_name}...[/bold yellow]")
+            with loader.load() as load_result:
+                nsda_domain_object_user = "nsda_user"
+                program: Program = load_result.getPrimaryDomainObject(nsda_domain_object_user)
+
+                # Set image base if provided
+                if base is not None:
+                    base_addr = program.getAddressFactory().getDefaultAddressSpace().getAddress(base)
+                    transaction_id = program.startTransaction("Set image base")
+                    try:
+                        program.setImageBase(base_addr, True)
+                    finally:
+                        program.endTransaction(transaction_id, True)
+                
+                # Get flat API
+                flat_api = FlatProgramAPI(program)
+                loading_time = (datetime.now() - loading_time).total_seconds()
+                logger.info(f"Loaded binary {binary_name} in {loading_time:.2f}s")
+
+                # Ghidra Auto-analysis
+                if spinner: spinner.update(text=f"[bold yellow]Performing Auto-Analysis...[/bold yellow]")
+                transaction_id = program.startTransaction("Run Auto-Analysis")
+                auto_analyze_time = datetime.now()
+                try:
+                    flat_api.analyzeAll(program)
+                finally:
+                    program.endTransaction(transaction_id, True)
+                auto_analyze_time = (datetime.now() - auto_analyze_time).total_seconds()
+                logger.info(f"Auto-analysis completed in {auto_analyze_time:.2f}s")
+                total_process_time = loading_time + auto_analyze_time
+# Loading binary and auto-analysis - End ======================================================
+                
+                listing = program.getListing()
+                code_units = listing.getCodeUnits(True)
+                total_memory = program.getMemory().getNumAddresses()
+                # Code Units Count has bug in Ghidra's implementation
+                proceeded_bytes = 0
+                for cu in code_units:
+                    if isinstance(cu, Instruction):
+                        code_results_set.update([cu.getMinAddress().getOffset() + offset for offset in range(cu.getLength())])
+                    else:
+                        data_results_set.update([cu.getMinAddress().getOffset() + offset for offset in range(cu.getLength())])
+                    proceeded_bytes += cu.getLength()
+                    if spinner: spinner.update(text=f"[bold yellow]Evaluating... {proceeded_bytes/total_memory*100:.2f}% memory processed[/bold yellow]")
+
+                program.release(nsda_domain_object_user)
+                load_result.save(pyghidra.task_monitor())
+
+        hits = code_results_set & code_set
+        error_code_list = list(code_results_set - code_set)
+        error_data_list = list(data_results_set & code_set)
+
+        tp = len(hits)
+        fp = len(error_code_list)
+        fn = len(error_data_list)
+        code_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        code_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+
         if args.get("keep_ghidra_prj") and args.get("keep_ghidra_prj_path"): 
             save_ghidra_cache(ghidra_project_path, args["keep_ghidra_prj_path"], "ghidra")
         else: delete_ghidra_cache(ghidra_project_path)
 
-        if args.get("dump_blocks_path") is not None:
-            my_program.dump_blocks(args["dump_blocks_path"])
-
-        tp = fp = fn = 0
-        error_code_list = []
-        error_data_list = []
-
-        for block in my_program.blocks:
-            logger.debug(f"{block}")
-            # space = block.start_address.getAddressSpace()
-            if block.start_address.getAddressSpace().getType() != AddressSpace.TYPE_RAM:
-                break
-
-            block_offsets = set(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
-            hits = block_offsets & code_set
-            if block.type == "Code":
-                tp += len(hits)
-                fp += len(block_offsets - hits)
-                error_code_list.extend(block_offsets - hits)
-            else:
-                fn += len(hits)
-                error_data_list.extend(hits)
-        code_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        code_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        return code_precision, code_recall, process_time, 0.0, 0.0, error_code_list, error_data_list
+        return code_precision, code_recall, total_process_time, 0.0, 0.0, error_code_list, error_data_list
 
 @register_evaluator
 class LoadstarEvaluator(Evaluator):

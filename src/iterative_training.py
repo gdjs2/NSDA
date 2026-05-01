@@ -1,21 +1,22 @@
-import math
+import ltn
 import shutil
+import pyghidra
 import tempfile
 
-from ltn_helper import *
 from pathlib import Path
+from loguru import logger
 from datetime import datetime
-
 from rich.spinner import Spinner
+from ltn_helper import train, evaluate
+from my_program_helper import MyProgram
 
-results = []
+from ghidra.program.flatapi import FlatProgramAPI  # type: ignore
+from ghidra.program.model.listing import Program  # type: ignore
 
-geomean = lambda x: math.exp(sum(map(math.log, x)) / len(x))
 
 def redisasemble(
         CodeBlock: ltn.Predicate, 
-        binary_path: str,
-        project_path: str,
+        flat_api: FlatProgramAPI,
         my_program: MyProgram,
         spinner: Spinner | None = None
     ) -> bool:
@@ -23,14 +24,17 @@ def redisasemble(
     Re-disassemble the blocks using the trained CodeBlock model.
     """
     flg = True
-    with pyghidra.open_program(binary_path, project_location=project_path, language='ARM:LE:32:v5', analyze=False) as flat_api:
+    transaction_id = flat_api.getCurrentProgram().startTransaction("Redisassemble blocks")
+    try:
         for idx, (block, emb) in enumerate(zip(my_program.blocks, my_program.embeddings)):
             if spinner: spinner.update(text=f"[bold yellow]Redisassembling block {idx + 1}/{len(my_program.blocks)}...[/bold yellow]")
             if CodeBlock(ltn.Constant(emb)).value >= .50 and block.type != "Code" and not block.failed_disasm_flg and block.is_executable:
                 flat_api.clearListing(block.start_address, block.end_address)
                 if flat_api.disassemble(block.start_address):
                     flg = False
-            # logger.debug(f"Re-disassembled block {block.start_address} in {binary_path}")
+                # logger.debug(f"Re-disassembled block {block.start_address} in {binary_path}")
+    finally:
+        flat_api.getCurrentProgram().endTransaction(transaction_id, True)
     return flg
 
 def delete_ghidra_cache(ghidra_project_path: str):
@@ -41,7 +45,7 @@ def delete_ghidra_cache(ghidra_project_path: str):
 def save_ghidra_cache(source_path: str, saved_path: str, suffix: str | None = None):
     path = Path(source_path)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    des_path = Path(saved_path) / f"{path.name}_{timestamp}_{suffix}"
+    des_path = Path(saved_path) / f"{timestamp}_{path.name}__{suffix}"
     if path.exists() and path.is_dir():
         if not des_path.parent.exists():
             des_path.parent.mkdir(parents=True)
@@ -61,158 +65,105 @@ def iterative_training(
     without_rules: bool = False,
     spinner: Spinner | None = None,
 ) -> tuple[float, float, float, float, float, list[int], list[int]]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
+    # Whether all iterations are finished
     finish_flg = False
+    # Iteration count
     iteration_cnt = 0
 
+    # Create temporary Ghidra project for this evaluation
     ghidra_project_path = tempfile.mkdtemp(prefix="ghidra_project_")
     logger.info(f"Created temporary Ghidra project at {ghidra_project_path}")
 
+    auto_analyze_time = .0
+    loading_time = .0
+    total_preprocess_time = .0
     total_training_time = .0
-    total_redisassemble_time = .0
-    while not finish_flg and iteration_cnt < iteration_limit:
-        CodeBlock = None
-        iteration_cnt += 1
-        preprocess_start_time = datetime.now()
+    total_postprocess_time = .0
 
-        if spinner: spinner.update(text=f"[bold yellow]Iteration {iteration_cnt}/{iteration_limit} Preprocessing program. ")
+    binary_name = Path(binary_path).stem
 
-        with pyghidra.open_program(binary_path, project_location=ghidra_project_path, language=language, analyze=False) as flat_api:
-            my_program = MyProgram(flat_api, base=base, without_nn=without_nn, spinner=spinner)
-        preprocess_time = (datetime.now() - preprocess_start_time).total_seconds()
+# Create a new project, import binary, auto-analysis - Once per program - Start ======================
+    loading_time = datetime.now()
+    with pyghidra.open_project(path=ghidra_project_path, name=binary_name, create=True) as project:
+        # Load binary program
+        from ghidra.program.flatapi import FlatProgramAPI  # type: ignore
+        loader = pyghidra.program_loader().project(project).source(binary_path).language(language)
+        if spinner: spinner.update(text=f"[bold yellow]Loading binary {binary_name}...[/bold yellow]")
+        with loader.load() as load_result:
+            nsda_domain_object_user = "nsda_user"
+            program: Program = load_result.getPrimaryDomainObject(nsda_domain_object_user)
 
-        logger.info(f"Program preprocessed in {preprocess_time:.2f}s with {len(my_program.blocks)} blocks")
+            # Set image base if provided
+            if base is not None:
+                base_addr = program.getAddressFactory().getDefaultAddressSpace().getAddress(base)
+                transaction_id = program.startTransaction("Set image base")
+                try:
+                    program.setImageBase(base_addr, True)
+                finally:
+                    program.endTransaction(transaction_id, True)
+            
+            # Get flat API
+            flat_api = FlatProgramAPI(program)
+            loading_time = (datetime.now() - loading_time).total_seconds()
+            logger.info(f"Loaded binary {binary_name} in {loading_time:.2f}s")
 
-        training_start_time = datetime.now()
-        CodeBlock, _ = train(my_program, CodeBlock, epoches_limit, wo_rules=without_rules, spinner=spinner)
-        total_training_time += (datetime.now() - training_start_time).total_seconds()
-        redisasemble_start_time = datetime.now()
-        finish_flg = redisasemble(CodeBlock, binary_path, ghidra_project_path, my_program, spinner)
-        total_redisassemble_time += (datetime.now() - redisasemble_start_time).total_seconds()
-    if keep_ghidra_prj and keep_ghidra_prj_path: save_ghidra_cache(ghidra_project_path, keep_ghidra_prj_path, "nsda")
+            # Ghidra Auto-analysis
+            if spinner: spinner.update(text=f"[bold yellow]Performing Auto-Analysis...[/bold yellow]")
+            transaction_id = program.startTransaction("Run Auto-Analysis")
+            auto_analyze_time = datetime.now()
+            try:
+                flat_api.analyzeAll(program)
+            finally:
+                program.endTransaction(transaction_id, True)
+            auto_analyze_time = (datetime.now() - auto_analyze_time).total_seconds()
+            logger.info(f"Auto-analysis completed in {auto_analyze_time:.2f}s")
+            total_preprocess_time += loading_time + auto_analyze_time
+# Create a new project, import binary, auto-analysis - Once per program - End ======================
+# Iterative training loop - Start ==================================================================
+            # Initialize MyProgram instance with the loaded program
+            # Start iteration
+            while not finish_flg and iteration_cnt < iteration_limit:
+                CodeBlock = None
+                iteration_cnt += 1
+
+                if spinner: spinner.update(text=f"[bold yellow]Iteration {iteration_cnt}/{iteration_limit} Preprocessing program. ")
+                # Preprocess
+                start = datetime.now()
+                my_program = MyProgram(flat_api, without_nn=without_nn, spinner=spinner)
+                preprocess_time = (datetime.now() - start).total_seconds()
+                total_preprocess_time += preprocess_time
+                logger.info(f"Program preprocessed in {preprocess_time:.2f}s with {len(my_program.blocks)} blocks")
+
+                # Training
+                start = datetime.now()
+                CodeBlock, _ = train(my_program, CodeBlock, epoches_limit, wo_rules=without_rules, spinner=spinner)
+                training_time = (datetime.now() - start).total_seconds()
+                total_training_time += training_time
+                logger.info(f"Training completed in {training_time:.2f}s")
+
+                # Postprocess
+                ## Redisassemble
+                start = datetime.now()
+                finish_flg = redisasemble(CodeBlock, flat_api, my_program, spinner)
+                redisassemble_time = (datetime.now() - start).total_seconds()
+                logger.info(f"Redisassemble completed in {redisassemble_time:.2f}s")
+                ## Re-analyze changes after redisassemble
+                if spinner: spinner.update(text=f"[bold yellow]Re-analyzing after redisassemble...[/bold yellow]")
+                transaction_id = program.startTransaction("Re-analyze after redisassemble")
+                start = datetime.now()
+                try:
+                    flat_api.analyzeChanges(program)
+                finally:
+                    program.endTransaction(transaction_id, True)
+                reanalyze_time = (datetime.now() - start).total_seconds()
+                logger.info(f"Re-analyze after redisassemble completed in {reanalyze_time:.2f}s")
+                total_postprocess_time += reanalyze_time + redisassemble_time
+            # Release the program to free up resources
+            program.release(nsda_domain_object_user)
+# Iterative training loop - End ==================================================================
+
+    if keep_ghidra_prj and keep_ghidra_prj_path: 
+        save_ghidra_cache(ghidra_project_path, keep_ghidra_prj_path, "nsda" if not without_nn else "fuzzy_nsda")
     else: delete_ghidra_cache(ghidra_project_path)
     code_precision, code_recall, error_code_list, error_data_list = evaluate(my_program, code_set)
-    return code_precision, code_recall, preprocess_time, total_training_time, total_redisassemble_time, error_code_list, error_data_list
-
-# def main(binaries, gt):
-#     finish = False
-#     iteration = 0
-#     # Check and delete any "{binary}_ghidra" folders if they exist
-#     for prg_file in binaries:
-#         ghidra_folder = f"{prg_file}_ghidra"
-#         if Path(ghidra_folder).exists() and Path(ghidra_folder).is_dir():
-#             shutil.rmtree(ghidra_folder)
-#             logger.info(f"Deleted existing folder {ghidra_folder}")
-
-#     whole_start_time = datetime.now()
-#     while not finish and iteration < 4:
-#         CodeBlock = None
-#         code_f1s, data_f1s = [], []
-#         iteration += 1
-#         my_programs: dict[Path, MyProgram] = {}
-
-#         process_times: list[tuple[str, float]] = []
-
-#         for prg_file in binaries:
-#             start_time = datetime.now()
-#             with pyghidra.open_program(prg_file, language='ARM:LE:32:v4') as flat_api:
-#                 my_program = MyProgram(flat_api)
-#             process_times.append((prg_file.name, (datetime.now() - start_time).total_seconds()))
-#             logger.info(f"Program {prg_file.name} preprocessed in {process_times[-1][1]:.2f}s")
-#             my_programs[prg_file] = my_program
-#         logger.info(f"All programs preprocessed in {sum(t[1] for t in process_times):.2f}s, total blocks: {sum(len(prg.blocks) for prg in my_programs.values())}")
-
-#         # Small epoches is the epochs for training on each program
-#         # We will train on all binaries for a few epochs, which is large_epochs
-#         small_epochs = 300
-#         large_epochs = 3
-#         logger.info(f"Start training with {len(my_programs)} programs, small epochs: {small_epochs}, large epochs: {large_epochs}")
-
-#         for i in range(large_epochs):
-#             for prg_file in my_programs:
-#                 logger.info(f"Training epoch {i + 1}/{large_epochs} on {prg_file.name}")
-#                 CodeBlock, loss = train(my_programs[prg_file], CodeBlock, small_epochs)
-
-#         logger.info("Training finished")
-
-#         if CodeBlock is None:
-#             logger.error("CodeBlock is None, training failed.")
-#             raise RuntimeError("CodeBlock is None, training failed.")
-
-#         finish = redisasemble(CodeBlock, my_programs)
-
-#         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-#         if CodeBlock is None:
-#             logger.error("CodeBlock is None, training failed.")
-#             exit(1)
-
-#         for prg_file, gt_file in zip(my_programs, gt):
-#             try:
-#                 results = evaluate(my_programs[prg_file], CodeBlock, 0.5, gt_file, Path(f"debug/{timestamp}/{prg_file.name}"), True)
-#                 code_f1s.append(results["code_f1"])
-#                 data_f1s.append(results["data_f1"])
-#             except Exception as e:
-#                 logger.info(f"Error evaluating {gt_file}: {e}")
-        
-#         with open(f"debug/{timestamp}/batch_results.txt", "w") as f:
-#             f.write(f"Binaires: {binaries}\n")
-#             f.write(f"Code F1 scores: {code_f1s}\n")
-#             f.write(f"Data F1 scores: {data_f1s}\n")
-#         logger.info(f"F1 Score Geomean: {geomean(code_f1s):.5f} for code, {geomean(data_f1s):.5f} for data")
-
-#         if CodeBlock: torch.save(CodeBlock.state_dict(), f"debug/{timestamp}/CodeBlock.pth")
-#         logger.info(f"Saved CodeBlock model to debug/{timestamp}/CodeBlock.pth")
-
-#     return {
-#         "bin_name": prg_file.name,
-#         "code_f1": code_f1s,
-#         "data_f1": data_f1s,
-#         # "training_time": results["time"],
-#         "total_time": (datetime.now() - whole_start_time).total_seconds()
-#     }
-
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description="Batch training and evaluation script.")
-#     parser.add_argument('--single_training', type=str)
-#     parser.add_argument('--batch_training', type=str)
-#     parser.add_argument('--binary_folder', type=str, help='Path to the binary folder')
-#     parser.add_argument('--test_binary', type=str, help='Path to the test binary')
-#     args = parser.parse_args()
-
-#     if args.test_binary:
-#         bin_file = Path(args.test_binary)
-#         gt = [Path(p).with_name(Path(p).name).with_suffix('.txt').as_posix().replace("/bins/", "/fixed_labeled/") for p in [bin_file]]
-#         if "ghidra" in bin_file.name or not os.path.exists(gt[0]):
-#             logger.error(f"Test binary {bin_file} or its ground truth {gt[0]} does not exist.")
-#         else:
-#             result = main([bin_file], gt)
-#             print(f"{result}\n")
-            
-
-#     dataset = "ns_1" if "NS_1" in args.binary_folder else "ns_3" if "NS_3" in args.binary_folder else "ns_2"
-#     result_file = open(f"{dataset}_results.txt", "w") 
-#     if args.batch_training:
-#         binaries, gt = binary_input(args.binary_folder)
-#         result = main(binaries[:5], gt)
-#         result_file.write(f"{result}\n")
-#         result_file.close()
-#     elif args.single_training:
-#         result_list = []
-#         for bin in os.listdir(args.binary_folder):
-#             bin_name = Path(bin).stem
-#             # if "ton_ld" not in bin_name:
-#             #     continue
-#             bin_file = Path(f"{args.binary_folder}/{bin}")
-#             gt = [Path(p).with_name(Path(p).name).with_suffix('.txt').as_posix().replace("/bins/", "/fixed_labeled/") for p in [bin_file]]
-#             if "ghidra" in bin or not os.path.exists(gt[0]):
-#                 continue
-        
-#             try:
-#                 result = main([bin_file], gt)
-#                 print(result)
-#                 result_list.append(result)
-#             except Exception as e:
-#                 logger.error(f"Error processing {bin_file}: {e}")
-
-#         for i in result_list:
-#             result_file.write(f"{i}\n")
-#         result_file.close()
+    return code_precision, code_recall, total_preprocess_time, total_training_time, total_postprocess_time, error_code_list, error_data_list

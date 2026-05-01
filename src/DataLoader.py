@@ -1,8 +1,8 @@
 import csv
 
 from pathlib import Path
-from abc import ABC, abstractmethod
 from loguru import logger
+from abc import ABC, abstractmethod
 from DataLoaderRegistry import register_dataloader
 
 class Data:
@@ -89,7 +89,7 @@ class LoadstarDataLoader(DataLoader):
                 offset = 0x0
                 for row in reader:
                     if row[1] == "0":
-                        code_set.add(offset)
+                        code_set.update(range(offset, offset + 4))
                     offset += 4
             data_dict[b.name] = Data(
                 name=b.name,

@@ -1,23 +1,18 @@
 import torch
 import pyghidra
-from datetime import datetime
-from rich.spinner import Spinner
-
-# Please make sure the Ghidra environment is started before using this module
-# Use following code to start if GHIDRA_INSTALL_DIR is already set or pass the install_dir parameter
-# if not pyghidra.started():
-#     pyghidra.start()
 
 from sys import argv
 from loguru import logger
+from rich.spinner import Spinner
 from typing import Literal, Self
-from ghidra.program.model.address import Address # pyright: ignore[reportMissingImports]
-from ghidra.program.model.pcode import PcodeOp # pyright: ignore[reportMissingImports]
-from ghidra.program.model.listing import Instruction, Listing, Program # pyright: ignore[reportMissingImports]
-from ghidra.program.model.scalar import Scalar # pyright: ignore[reportMissingImports]
-from ghidra.app.util import PseudoDisassembler, PseudoDisassemblerContext, PseudoInstruction # pyright: ignore[reportMissingImports]
-from ghidra.program.model.mem import Memory # pyright: ignore[reportMissingImports]
-from ghidra.program.model.symbol import ReferenceManager # pyright: ignore[reportMissingImports]
+
+from ghidra.program.model.address import Address # type: ignore
+from ghidra.program.model.pcode import PcodeOp # type: ignore
+from ghidra.program.model.listing import Instruction, Listing, Program # type: ignore
+from ghidra.program.model.scalar import Scalar # type: ignore
+from ghidra.program.model.mem import Memory # type: ignore
+from ghidra.program.model.symbol import ReferenceManager # type: ignore
+from ghidra.app.util import PseudoDisassembler, PseudoDisassemblerContext, PseudoInstruction # type: ignore
 
 COMPARISON_OPCODES = [
     PcodeOp.INT_EQUAL,
@@ -524,32 +519,6 @@ def analyze_memory_features(block: Block, memory: Memory) -> tuple[int, int]:
     block.high_cont_printable_char_rate_flg = continous_printable_count * 2 >= block_span
 
     return zero_bytes_cnt, printable_count
-    
-# def get_feature_vector(
-#         blocks: list[Block],
-#         refs: ReferenceManager, 
-#         listing: Listing, 
-#         memory: Memory,
-#         spinner: Spinner | None = None
-#     ) -> None:
-#     """
-#     Get the feature vector for each block.
-#     """
-#     for idx, block in enumerate(blocks):
-#         if spinner: spinner.update(text=f"[bold yellow]Getting feature vector for block {idx + 1}/{len(blocks)}...[/bold yellow]")
-#         block_size = block.end_address.subtract(block.start_address) + 1
-#         feature_vec = [
-#             get_string_number(block, refs, listing) / block_size,
-#             get_num_constant(block) / block_size,
-#             get_transfer_number(block) / block_size,
-#             get_call_number(block) / block_size,
-#             get_instr_number(block) / block_size,
-#             get_arithmetic_number(block) / block_size,
-#             get_zero_bytes_number(block, memory) / block_size,
-#             get_def_use_number(block) / block_size,
-#             get_printable_char_number(block, memory) / block_size,
-#         ]
-#         block.feature_vector = feature_vec
 
 def analyze_instruction_features(block, refs, listing):
     string_number = 0
@@ -702,44 +671,6 @@ def check_compare_branch(blocks: list[Block], program: Program, spinner: Spinner
             block.cond_branch_flg = detect_comp_flg
     return
 
-# def check_def_use(blocks, psuedo_disassembler: PseudoDisassembler):
-#     for block in blocks:
-#         if block.type == "Code": continue
-#         instrs = block.pseudo_instrs
-#         defs = {}
-#         for i, instr in enumerate(instrs):
-#             pcode_ops = instr.getPcode()
-#             instr_def = []
-#             for op in pcode_ops:
-#                 if op.getOpcode() == PcodeOp.STORE:
-#                     uses = op.getInputs()
-#                     for use in uses:
-#                         if use in defs and i - defs[use] <= 16:
-#                             block.def_use_flg = True
-#                             break
-#                 if op.getOpcode() in [PcodeOp.COPY, PcodeOp.LOAD]:
-#                     instr_def.append(op.getOutput())
-#             for d in instr_def:
-#                 defs[d] = i
-#     return
-
-# def check_very_short(blocks: list[Block]) -> None:
-#     """
-#     Check if the block is very short, i.e., less than 3 instruction (12 bytes).
-#     This function will set the `very_short_flg` attribute of the block.
-#     Args:
-#         blocks (list[Block]): The list of blocks to analyze.
-#     Returns:
-#         None: The blocks will be updated in place with their very short flags.
-#     """
-#     for block in blocks:
-#         if block.end_address.subtract(block.start_address) <= 12:
-#             block.very_short_flg = True
-#             block.type = "Code" if block.type == "Data" else "Data"
-#         else:
-#             block.very_short_flg = False
-#     return
-
 def generate_embeddings_from_feature_vector(blocks: list[Block], spinner: Spinner | None = None) -> torch.Tensor:
     """
     Generate embeddings from the feature vector of the blocks.
@@ -760,33 +691,3 @@ def generate_random_embeddings(blocks, dim=16):
     n = len(blocks)
     embeddings = torch.randn(n, dim)
     return embeddings
-
-# def fix_undisassembled_data_blocks(blocks):
-#     for block in blocks:
-#         if block.pseudo_instrs is None:
-#             block.type = "FixedData"
-
-if __name__ == "__main__":
-    with pyghidra.open_program('/home/zhaoqi.xiao/Projects/Loadstar/Dataset/NS_1/bins/108.58.252.74.PRG', language='ARM:LE:32:Cortex') as flat_api:
-    # with pyghidra.open_program("/home/zhaoqi.xiao/Projects/ghidra-ic/Binaries/xmltest") as flat_api:
-        program = flat_api.getCurrentProgram()
-        function_manager = program.getFunctionManager()
-        listing = program.getListing()
-        memory = program.getMemory()
-
-        blocks = extract_all_blocks(listing, memory)
-        blocks.sort(key=lambda b: b.start_address)
-
-        pseudo_disassemble_blocks(blocks, program)
-
-        get_feature_vector(blocks, program.getReferenceManager(), listing, memory)
-        check_compare_branch(blocks, program)
-        # check_very_short(blocks)
-
-        # check_def_use(blocks, PseudoDisassembler(program))
-        if argv[1] == "debug":
-            with open('blocks.txt', 'w') as f:
-                for block in blocks:
-                    f.write(f"{repr(block)}\n\n")
-        
-        logger.info(f"Extracted {len(blocks)} blocks from the program, exported to blocks.txt")

@@ -5,7 +5,12 @@ from graph_helper import *
 from rich.spinner import Spinner
 
 class MyProgram:
-    def __init__(self: Self, flat_api: FlatProgramAPI, base: int | None = None, without_nn: bool = False, spinner: Spinner | None = None) -> None:
+    def __init__(
+        self: Self, 
+        flat_api: FlatProgramAPI, 
+        without_nn: bool = False, 
+        spinner: Spinner | None = None
+    ) -> None:
         """
         Initialize the Program instance with a FlatProgramAPI instance.
         Args:
@@ -13,48 +18,7 @@ class MyProgram:
             base (int | None): Optional base address to set for the program. This is determined
                 by the loader if unspecified.
         """
-        self.flat_api = flat_api
-        
         program = flat_api.getCurrentProgram()
-
-        if base is not None:
-            address_factory = program.getAddressFactory()
-            default_space = address_factory.getDefaultAddressSpace()
-            new_base_address = default_space.getAddress(base)
-            txId = program.startTransaction("Set Image Base")
-            try:
-                program.setImageBase(new_base_address, True) 
-            except Exception as e:
-                logger.error(f"Failed to set image base: {e}")
-            finally:
-                program.endTransaction(txId, True) 
-        
-        if spinner: spinner.update(text=f"[bold yellow]Analyzing program with Ghidra auto-analysis...[/bold yellow]")
-
-        # Customize analysis options
-        # program = flat_api.getCurrentProgram()
-    
-        # 1. Fetch the Analyzer Options for the current program
-        # options = program.getOptions("Analyzers")
-        
-        # # 2. Disable the "Heavy Hitters" (Decompiler, Stack, etc.)
-        # options.setBoolean("Decompiler Parameter ID", False)
-        # options.setBoolean("Decompiler Switch Analysis", False)
-        # options.setBoolean("Stack", False)
-        # options.setBoolean("Call Convention ID", False)
-        # options.setBoolean("Constant Propagation", False)
-        # options.setBoolean("Apply Data Archives", False)
-        
-        # # 3. Explicitly enable the structural essentials 
-        # # (These are usually True by default, but it is safest to enforce them)
-        # options.setBoolean("Disassemble Entry Points", True)
-        # options.setBoolean("ASCII Strings", True)
-        # options.setBoolean("Create Function / Subroutine", True)
-        # options.setBoolean("Reference", True)
-
-        flat_api.analyzeAll(program)
-        # flat_api.analyzeChanges(program)
-        
         listing = program.getListing()
         memory = program.getMemory()
         ref_manager = program.getReferenceManager()

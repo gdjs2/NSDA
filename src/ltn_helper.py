@@ -5,7 +5,7 @@ from datetime import datetime
 
 from rich.spinner import Spinner
 
-from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
+from ghidra.program.model.address import AddressSpace # type: ignore
 
 def train(
         my_program: MyProgram,
@@ -107,133 +107,28 @@ def evaluate(
     error_code_list = []
     error_data_list = []
 
+    code_results_set = set()
+    data_results_set = set()
+
     for block in my_program.blocks:
         logger.debug(f"{block}")
         # space = block.start_address.getAddressSpace()
         if block.start_address.getAddressSpace().getType() != AddressSpace.TYPE_RAM:
             break
-        block_offsets = set(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
-        hits = block_offsets & code_set
+        # block_offsets = set(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
         if block.type == "Code":
-            tp += len(hits)
-            fp += len(block_offsets - hits)
-            error_code_list.extend(block_offsets - hits)
+            code_results_set.update(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
         else:
-            fn += len(hits)
-            error_data_list.extend(hits)
+            data_results_set.update(range(block.start_address.getOffset(), block.end_address.getOffset(), 4))
+
+    hits = code_results_set & code_set
+    error_code_list = list(code_results_set - code_set)
+    error_data_list = list(data_results_set & code_set)
+
+    tp = len(hits)
+    fp = len(error_code_list)
+    fn = len(error_data_list)
     code_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     code_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
 
     return (code_precision, code_recall, error_code_list, error_data_list)
-
-# def evaluate(
-#         my_program: MyProgram,
-#         CodeBlock: ltn.Predicate,
-#         loss: float,
-#         label_file,
-#         result_path: Path,
-#         debug_flg: bool = False
-#     ) -> dict:
-#     start = datetime.now()
-
-#     with open(label_file, "r") as f:
-#         lines = f.readlines()
-#     lines = [line.strip()[-1] for line in lines]
-
-#     tp_code = tp_data = fp_code = fp_data = fn_code = fn_data = cnt = 0
-
-#     if not result_path.exists():
-#         result_path.mkdir(parents=True, exist_ok=True)
-
-#     f = open(result_path / "debug.txt", "w") if debug_flg else None
-
-#     for i, block in enumerate(my_program.blocks):
-#         block_opt_flg = True
-#         code_flg = 0
-#         if CodeBlock(ltn.Constant(my_program.embeddings[i])).value < loss:
-#             code_flg = 1
-
-#         addr = block.start_address
-#         while addr <= block.end_address:
-#             if cnt // 4 >= len(lines):
-#                 break
-#             if code_flg == int(lines[cnt // 4]):
-#                 if code_flg == 0:
-#                     tp_code += 1
-#                 else:
-#                     tp_data += 1
-#             else:
-#                 if code_flg == 0:
-#                     fp_code += 1
-#                     fn_data += 1
-#                 else:
-#                     fp_data += 1
-#                     fn_code += 1
-#                 if f:
-#                     f.write(f"{addr} expected: {lines[cnt // 4]}, predicted: {code_flg}\n")
-#                 block_opt_flg = False
-#             addr = addr.add(1)
-#             cnt += 1
-#         if not block_opt_flg and f:
-#             f.write("\n")
-
-#     if f:
-#         f.close()
-
-#     code_prec = tp_code / (tp_code + fp_code) if (tp_code + fp_code) > 0 else 0.0
-#     code_rec  = tp_code / (tp_code + fn_code) if (tp_code + fn_code) > 0 else 0.0
-#     code_f1   = 2 * code_prec * code_rec / (code_prec + code_rec) if (code_prec + code_rec) > 0 else 0.0
-
-#     data_prec = tp_data / (tp_data + fp_data) if (tp_data + fp_data) > 0 else 0.0
-#     data_rec  = tp_data / (tp_data + fn_data) if (tp_data + fn_data) > 0 else 0.0
-#     data_f1   = 2 * data_prec * data_rec / (data_prec + data_rec) if (data_prec + data_rec) > 0 else 0.0
-
-#     if debug_flg:
-#         with open(result_path / "result.txt", "w") as f:
-#             for i, block in enumerate(my_program.blocks):
-#                 f.write(
-#                     f"{repr(block)}\n"
-#                     f"  Embedding : {my_program.embeddings[i]}\n"
-#                     f"  CodeBlock : {CodeBlock(ltn.Constant(my_program.embeddings[i])).value.item()}\n\n"
-#                 )
-
-#     elapsed = (datetime.now() - start).total_seconds()
-#     logger.info(
-#         f"Code  P/R/F1: {code_prec:.5f}/{code_rec:.5f}/{code_f1:.5f} (tp:{tp_code}) | "
-#         f"Data  P/R/F1: {data_prec:.5f}/{data_rec:.5f}/{data_f1:.5f} (tp:{tp_data}) | "
-#         f"Time: {elapsed:.2f}s"
-#     )
-
-#     return {
-#         "code_precision": code_prec,
-#         "code_recall": code_rec,
-#         "code_f1": code_f1,
-#         "data_precision": data_prec,
-#         "data_recall": data_rec,
-#         "data_f1": data_f1
-#     }
-
-# You can train single binary using this script
-# if __name__ == '__main__':
-#     # Command line argument to enable debug mode
-#     debug_flg = (argv[1] == "debug")
-#     # Set your binary file path here
-#     with pyghidra.open_program('/home/zhaoqi.xiao/Projects/Loadstar/Dataset/NS_3/bins/xor_st.app', language='ARM:LE:32:v4') as flat_api:
-
-#         time = datetime.now()
-#         my_program = MyProgram(flat_api)
-#         logger.info(f"Program preprocessed in {(datetime.now() - time).total_seconds():.2f}s")
-        
-#         CodeBlock, loss = train(my_program, None, 1000)
-#         time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-#         # gt file and debug directory should be set here
-#         evaluate(
-#             my_program, 
-#             CodeBlock, 
-#             0.5, 
-#             "/home/zhaoqi.xiao/Projects/Loadstar/Dataset/NS_3/labeled/ton_ld.txt", 
-#             Path(f"./debug/{time_stamp}/ton_ld.app"), 
-#             debug_flg
-#         )
-#         if debug_flg:
-#             torch.save(CodeBlock.state_dict(), Path(f"./debug/{time_stamp}/CodeBlock.pt"))

@@ -1,5 +1,5 @@
 [config]
-ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
+ghidra_home = "/opt/ghidra_12.0.4_PUBLIC"
 eval_type = "Dataset Evaluation"
 dump_json = true
 dump_error_list = true
