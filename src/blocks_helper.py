@@ -1,6 +1,7 @@
 import torch
 import pyghidra
 from datetime import datetime
+from rich.spinner import Spinner
 
 # Please make sure the Ghidra environment is started before using this module
 # Use following code to start if GHIDRA_INSTALL_DIR is already set or pass the install_dir parameter
@@ -114,18 +115,23 @@ class Block:
         """
         return self.end_address.subtract(self.start_address) + 1
 
-def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
+def extract_all_blocks(listing: Listing, memory: Memory, spinner: Spinner | None = None) -> list[Block]:
     """
     Extract all code and data blocks from the program's listing and memory.
     Args:
         listing (Listing): The program's listing containing code units.
         memory (Memory): The program's memory containing blocks.
+        spinner (Spinner | None): Optional spinner for displaying progress.
     Returns:
         list[Block]: A combined list of code and data Block instances.
     """
     blocks: list[Block] = []
+    total = len(memory.getBlocks())
 
-    for mmry_blk in memory.getBlocks():
+    for idx, mmry_blk in enumerate(memory.getBlocks()):
+        
+        if spinner: spinner.update(text=f"[bold yellow]Extracting blocks and edges from the program {idx + 1}/{total}...[/bold yellow]")
+
         addr = mmry_blk.getStart()
         blk_end_addr = mmry_blk.getEnd().subtract(1)
 
@@ -140,7 +146,13 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
         in_unknown_block = False
         unknown_start = None
 
+        start_offset = addr.getOffset()
+        end_offset = blk_end_addr.getOffset()
+
         while addr <= blk_end_addr:
+            current_offset = addr.getOffset()
+            if spinner: spinner.update(text=f"[bold yellow]Extracting blocks and edges from the program {idx + 1}/{total}... ({(current_offset - start_offset) * 100 // (end_offset - start_offset + 1)}%) [/bold yellow]")
+
             code_unit = listing.getCodeUnitAt(addr)
 
             if isinstance(code_unit, Instruction):
@@ -218,7 +230,7 @@ def extract_all_blocks(listing: Listing, memory: Memory) -> list[Block]:
 
     return blocks
 
-def pseudo_disassemble_blocks(blocks: list[Block], program: Program) -> None:
+def pseudo_disassemble_blocks(blocks: list[Block], program: Program, spinner: Spinner | None = None) -> None:
     """
     Pseudo disassemble the blocks using the PseudoDisassembler, default in ARM mode (SEE TODO).
     Args:
@@ -229,7 +241,10 @@ def pseudo_disassemble_blocks(blocks: list[Block], program: Program) -> None:
     """
     pseudo_disassembler = PseudoDisassembler(program)
     alignment = program.getLanguage().getInstructionAlignment()
-    for block in blocks:
+    total = len(blocks)
+
+    for idx, block in enumerate(blocks):
+        if spinner: spinner.update(text=f"[bold yellow]Pseudo disassembling block {idx + 1}/{total}...[/bold yellow]")
         ctx = PseudoDisassemblerContext(program.getProgramContext())
         # tmode_reg = program.getRegister("TMode")
         # If you don't care about thumb mode, just comment the next line
@@ -250,9 +265,11 @@ def pseudo_disassemble_blocks(blocks: list[Block], program: Program) -> None:
             block.failed_disasm_flg = False
         block.pseudo_instrs = instrs
 
-def split_data_blocks(blocks: list[Block]) -> list[Block]:
+def split_data_blocks(blocks: list[Block], spinner: Spinner | None = None) -> list[Block]:
     splited_blocks = []
-    for block in blocks:
+    total = len(blocks)
+    for idx, block in enumerate(blocks):
+        if spinner: spinner.update(text=f"[bold yellow]Splitting data blocks {idx + 1}/{total}...[/bold yellow]")
         if block.type == "Code" or block.pseudo_instrs is None:
             splited_blocks.append(block)
             continue
@@ -470,42 +487,202 @@ def get_printable_char_number(block: Block, memory: Memory) -> int:
     else:
         block.high_cont_printable_char_rate_flg = False
     return printable_count
-    
-def get_feature_vector(
-        blocks: list[Block],
-        refs: ReferenceManager, 
-        listing: Listing, 
-        memory: Memory
-    ) -> None:
-    """
-    Get the feature vector for each block.
-    """
-    for block in blocks:
-        block_size = block.end_address.subtract(block.start_address) + 1
-        feature_vec = [
-            get_string_number(block, refs, listing) / block_size,
-            get_num_constant(block) / block_size,
-            get_transfer_number(block) / block_size,
-            get_call_number(block) / block_size,
-            get_instr_number(block) / block_size,
-            get_arithmetic_number(block) / block_size,
-            get_zero_bytes_number(block, memory) / block_size,
-            get_def_use_number(block) / block_size,
-            get_printable_char_number(block, memory) / block_size,
-        ]
-        block.feature_vector = feature_vec
 
-def check_compare_branch(blocks: list[Block], program: Program) -> None:
+def analyze_memory_features(block: Block, memory: Memory) -> tuple[int, int]:
+    """
+    Analyze memory-related features in a single memory scan.
+    Args:
+        block (Block): The block to analyze.
+        memory (Memory): The program's memory to read bytes from.
+    Returns:
+        tuple[int, int]: (zero_bytes_count, printable_count)
+    """
+    zero_bytes_cnt = 0
+    printable_count = 0
+    continous_printable_count = 0
+
+    addr = block.start_address
+    while addr <= block.end_address:
+        try:
+            data = memory.getByte(addr) & 0xFF
+
+            if data == 0:
+                zero_bytes_cnt += 1
+
+            if 32 <= data <= 126:  # ASCII printable range
+                printable_count += 1
+                continous_printable_count += 1
+            else:
+                continous_printable_count = 0
+        except:  # Reading memory may fail if the address is not valid
+            pass
+
+        addr = addr.add(1)
+
+    block_span = block.end_address.subtract(block.start_address)
+    block.high_zero_rate_flg = zero_bytes_cnt * 2 >= block_span
+    block.high_cont_printable_char_rate_flg = continous_printable_count * 2 >= block_span
+
+    return zero_bytes_cnt, printable_count
+    
+# def get_feature_vector(
+#         blocks: list[Block],
+#         refs: ReferenceManager, 
+#         listing: Listing, 
+#         memory: Memory,
+#         spinner: Spinner | None = None
+#     ) -> None:
+#     """
+#     Get the feature vector for each block.
+#     """
+#     for idx, block in enumerate(blocks):
+#         if spinner: spinner.update(text=f"[bold yellow]Getting feature vector for block {idx + 1}/{len(blocks)}...[/bold yellow]")
+#         block_size = block.end_address.subtract(block.start_address) + 1
+#         feature_vec = [
+#             get_string_number(block, refs, listing) / block_size,
+#             get_num_constant(block) / block_size,
+#             get_transfer_number(block) / block_size,
+#             get_call_number(block) / block_size,
+#             get_instr_number(block) / block_size,
+#             get_arithmetic_number(block) / block_size,
+#             get_zero_bytes_number(block, memory) / block_size,
+#             get_def_use_number(block) / block_size,
+#             get_printable_char_number(block, memory) / block_size,
+#         ]
+#         block.feature_vector = feature_vec
+
+def analyze_instruction_features(block, refs, listing):
+    string_number = 0
+    constant_count = 0
+    transfer_count = 0
+    call_count = 0
+    instr_count = 0
+    arithmetic_count = 0
+    def_use_cnt = 0
+
+    defs = {}
+
+    if not block.pseudo_instrs:
+        block.high_def_use_rate_flg = False
+        return (0,0,0,0,0,0,0)
+
+    for i, instr in enumerate(block.pseudo_instrs):
+
+        if instr is None:
+            continue
+
+        instr_count += 1
+
+        addr = instr.getAddress()
+        flow = instr.getFlowType()
+
+        # transfer + call
+        if flow.isCall():
+            call_count += 1
+            transfer_count += 1
+        elif flow.isJump() or flow.isTerminal():
+            transfer_count += 1
+
+        # references → strings
+        for ref in refs.getReferencesFrom(addr):
+            data = listing.getDataAt(ref.getToAddress())
+            if data and data.hasStringValue():
+                string_number += 1
+
+        # constants
+        for iop in range(instr.getNumOperands()):
+            for obj in instr.getOpObjects(iop):
+                if isinstance(obj, Scalar) or isinstance(obj, Address):
+                    constant_count += 1
+
+        # pcode
+        pcode_ops = instr.getPcode()
+        instr_def = {}
+
+        for op in pcode_ops:
+
+            if op.getOpcode() in ARITHMETIC_OPCODES:
+                arithmetic_count += 1
+
+            for use in op.getInputs():
+                if use in defs:
+                    def_use_cnt += 1
+
+            out = op.getOutput()
+            if out is not None:
+                instr_def[out] = i
+
+        defs.update(instr_def)
+
+        # prune old defs
+        for d in list(defs):
+            if defs[d] - i > 16:
+                del defs[d]
+
+    block_size = block.end_address.subtract(block.start_address)
+
+    block.high_def_use_rate_flg = def_use_cnt * 3 >= block_size
+
+    return (
+        string_number,
+        constant_count,
+        transfer_count,
+        call_count,
+        instr_count,
+        arithmetic_count,
+        def_use_cnt,
+    )
+
+
+
+def get_feature_vector(blocks, refs, listing, memory, spinner=None):
+
+    for idx, block in enumerate(blocks):
+
+        if spinner:
+            spinner.update(
+                text=f"[bold yellow]Getting feature vectors for block {idx+1}/{len(blocks)}...[/bold yellow]"
+            )
+
+        block_size = block.end_address.subtract(block.start_address) + 1
+
+        (
+            string_number,
+            constant_count,
+            transfer_count,
+            call_count,
+            instr_count,
+            arithmetic_count,
+            def_use_cnt
+        ) = analyze_instruction_features(block, refs, listing)
+
+        zero_bytes_cnt, printable_count = analyze_memory_features(block, memory)
+
+        block.feature_vector = [
+            string_number / block_size,
+            constant_count / block_size,
+            transfer_count / block_size,
+            call_count / block_size,
+            instr_count / block_size,
+            arithmetic_count / block_size,
+            zero_bytes_cnt / block_size,
+            def_use_cnt / block_size,
+            printable_count / block_size,
+        ]
+
+def check_compare_branch(blocks: list[Block], program: Program, spinner: Spinner | None = None) -> None:
     """
     Check conditional branches in the blocks following a comparison instructions. 
     This function will set the `cond_branch_flg` attribute of the block.
     Args:
         blocks (list[Block]): The list of blocks to analyze.
         program (Program): The program containing the blocks.
+        spinner (Spinner | None): Spinner object for progress indication.
     Returns:
         None: The blocks will be updated in place with their conditional branch flags.
     """
-    for block in blocks:
+    for idx, block in enumerate(blocks):
+        if spinner: spinner.update(text=f"[bold yellow]Checking compare branch for block {idx + 1}/{len(blocks)}...[/bold yellow]")
         if block.pseudo_instrs is None: 
             block.cond_branch_flg = None
             continue
@@ -563,16 +740,19 @@ def check_compare_branch(blocks: list[Block], program: Program) -> None:
 #             block.very_short_flg = False
 #     return
 
-def generate_embeddings_from_feature_vector(blocks: list[Block]) -> torch.Tensor:
+def generate_embeddings_from_feature_vector(blocks: list[Block], spinner: Spinner | None = None) -> torch.Tensor:
     """
     Generate embeddings from the feature vector of the blocks.
     Args:
         blocks (list[Block]): The list of blocks to generate embeddings from.
+        spinner (Spinner | None): Spinner object for progress indication.
     Returns:
         torch.Tensor: A tensor containing the embeddings for each block.
     """
     embeddings = []
-    for block in blocks:
+    total = len(blocks)
+    for idx, block in enumerate(blocks):
+        if spinner: spinner.update(text=f"[bold yellow]Generating embedding for block {idx + 1}/{total}...[/bold yellow]")
         embeddings.append(torch.tensor(block.feature_vector, dtype=torch.float32))
     return torch.stack(embeddings, dim=0)
 

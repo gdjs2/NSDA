@@ -1,5 +1,6 @@
 import math
 import shutil
+import tempfile
 
 from ltn_helper import *
 from pathlib import Path
@@ -14,14 +15,17 @@ geomean = lambda x: math.exp(sum(map(math.log, x)) / len(x))
 def redisasemble(
         CodeBlock: ltn.Predicate, 
         binary_path: str,
-        my_program: MyProgram
+        project_path: str,
+        my_program: MyProgram,
+        spinner: Spinner | None = None
     ) -> bool:
     """
     Re-disassemble the blocks using the trained CodeBlock model.
     """
     flg = True
-    with pyghidra.open_program(binary_path, language='ARM:LE:32:v5') as flat_api:
-        for block, emb in zip(my_program.blocks, my_program.embeddings):
+    with pyghidra.open_program(binary_path, project_location=project_path, language='ARM:LE:32:v5', analyze=False) as flat_api:
+        for idx, (block, emb) in enumerate(zip(my_program.blocks, my_program.embeddings)):
+            if spinner: spinner.update(text=f"[bold yellow]Redisassembling block {idx + 1}/{len(my_program.blocks)}...[/bold yellow]")
             if CodeBlock(ltn.Constant(emb)).value >= .50 and block.type != "Code" and not block.failed_disasm_flg and block.is_executable:
                 flat_api.clearListing(block.start_address, block.end_address)
                 if flat_api.disassemble(block.start_address):
@@ -29,22 +33,20 @@ def redisasemble(
             # logger.debug(f"Re-disassembled block {block.start_address} in {binary_path}")
     return flg
 
-def delete_ghidra_cache(binary_path: str):
-    ghidra_folder = f"{binary_path}_ghidra"
-    if Path(ghidra_folder).exists() and Path(ghidra_folder).is_dir():
-        shutil.rmtree(ghidra_folder)
-        logger.info(f"Deleted ghidra cache folder {ghidra_folder}")
+def delete_ghidra_cache(ghidra_project_path: str):
+    if Path(ghidra_project_path).exists() and Path(ghidra_project_path).is_dir():
+        shutil.rmtree(ghidra_project_path)
+        logger.info(f"Deleted ghidra cache folder {ghidra_project_path}")
 
-def save_ghidra_cache(binary_path: str, saved_path: str, suffix: str | None = None):
-    ghidra_folder = f"{binary_path}_ghidra"
-    path = Path(ghidra_folder)
+def save_ghidra_cache(source_path: str, saved_path: str, suffix: str | None = None):
+    path = Path(source_path)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     des_path = Path(saved_path) / f"{path.name}_{timestamp}_{suffix}"
     if path.exists() and path.is_dir():
         if not des_path.parent.exists():
             des_path.parent.mkdir(parents=True)
         shutil.move(path, des_path)
-        logger.info(f"Save ghidra cache folder {ghidra_folder} to {des_path}")
+        logger.info(f"Save ghidra cache folder {path.name} to {des_path}")
 
 def iterative_training(
     binary_path: str, 
@@ -57,11 +59,13 @@ def iterative_training(
     without_nn: bool = False,
     language: str = "ARM:LE:32:v5",
     without_rules: bool = False,
-    spinner: Spinner | None = None
+    spinner: Spinner | None = None,
 ) -> tuple[float, float, float, float, float, list[int], list[int]]: # Code Precision, Code Recall, Data Precision, Data Recall, Preprocessing Time, Training Time, Redisassemble Time
     finish_flg = False
     iteration_cnt = 0
-    delete_ghidra_cache(binary_path)
+
+    ghidra_project_path = tempfile.mkdtemp(prefix="ghidra_project_")
+    logger.info(f"Created temporary Ghidra project at {ghidra_project_path}")
 
     total_training_time = .0
     total_redisassemble_time = .0
@@ -72,8 +76,8 @@ def iterative_training(
 
         if spinner: spinner.update(text=f"[bold yellow]Iteration {iteration_cnt}/{iteration_limit} Preprocessing program. ")
 
-        with pyghidra.open_program(binary_path, language=language) as flat_api:
-            my_program = MyProgram(flat_api, base=base, without_nn=without_nn)
+        with pyghidra.open_program(binary_path, project_location=ghidra_project_path, language=language, analyze=False) as flat_api:
+            my_program = MyProgram(flat_api, base=base, without_nn=without_nn, spinner=spinner)
         preprocess_time = (datetime.now() - preprocess_start_time).total_seconds()
 
         logger.info(f"Program preprocessed in {preprocess_time:.2f}s with {len(my_program.blocks)} blocks")
@@ -82,10 +86,10 @@ def iterative_training(
         CodeBlock, _ = train(my_program, CodeBlock, epoches_limit, wo_rules=without_rules, spinner=spinner)
         total_training_time += (datetime.now() - training_start_time).total_seconds()
         redisasemble_start_time = datetime.now()
-        finish_flg = redisasemble(CodeBlock, binary_path, my_program)
+        finish_flg = redisasemble(CodeBlock, binary_path, ghidra_project_path, my_program, spinner)
         total_redisassemble_time += (datetime.now() - redisasemble_start_time).total_seconds()
-    if keep_ghidra_prj and keep_ghidra_prj_path: save_ghidra_cache(binary_path, keep_ghidra_prj_path, "nsda")
-    else: delete_ghidra_cache(binary_path)
+    if keep_ghidra_prj and keep_ghidra_prj_path: save_ghidra_cache(ghidra_project_path, keep_ghidra_prj_path, "nsda")
+    else: delete_ghidra_cache(ghidra_project_path)
     code_precision, code_recall, error_code_list, error_data_list = evaluate(my_program, code_set)
     return code_precision, code_recall, preprocess_time, total_training_time, total_redisassemble_time, error_code_list, error_data_list
 

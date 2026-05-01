@@ -1,7 +1,5 @@
 import csv
-import blocks_pb2
 
-from bitarray import bitarray
 from pathlib import Path
 from abc import ABC, abstractmethod
 from loguru import logger
@@ -224,6 +222,7 @@ class OpensslDataLoader(DataLoader):
         :return: A dictionary mapping data names to Data instances, or None if loading fails.
         :rtype: dict[str, Data] | None
         """
+        import blocks_pb2
         home = Path(openssl_home)
         binary_path = home / "bins"
         label_home = home / "labels"
@@ -255,3 +254,40 @@ class OpensslDataLoader(DataLoader):
                 subset=None
             )
         return data_dict
+
+@register_dataloader
+class ChromiumDataLoader(DataLoader):
+    def load(self, chromium_home: str) -> dict[str, Data] | None:
+        """
+        Load data from the Chromium dataset home directory.
+        
+        :param self: The instance of the ChromiumDataLoader class.
+        :param chromium_home: The path to the Chromium dataset home directory.
+        :type chromium_home: str
+        :return: A dictionary mapping data names to Data instances, or None if loading fails.
+        :rtype: dict[str, Data] | None
+        """
+        home = Path(chromium_home)
+        binary_file = home / "chrome.dll"
+        label_file = home / "chrome.dll.gt"
+
+        code_set = set()
+        with open(label_file, "r") as f:
+            for line in f:
+                start, end = line.split() 
+                start_n = int(start, 16)
+                end_n = int(end, 16)
+                # code_set.update(range(start_n, end_n))
+                # if start_n in code_set:
+                #     logger.warning(f"duplicated {start} in {label_file}.")
+                code_set.add(start_n)
+
+        print(f"Loaded {len(code_set)} code addresses from {label_file}.")
+        return {
+             binary_file.name: Data(
+                name=binary_file.name,
+                binary_path=str(binary_file),
+                code_set=code_set,
+                subset=None
+            )
+        }

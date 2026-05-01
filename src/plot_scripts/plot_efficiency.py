@@ -12,6 +12,18 @@ COREUTILS_MIPS_HOME = DATASET_HOME / "coreutils-mips"
 COREUTILS_ARM_LLVM_HOME = DATASET_HOME / "coreutils-arm-llvm"
 COREUTILS_MIPS_LLVM_HOME = DATASET_HOME / "coreutils-mips-llvm"
 LOADSTAR_HOME = DATASET_HOME / "Loadstar"
+OPENSSL_X64_HOME = DATASET_HOME / "OpenSSL-x64"
+
+
+def get_method_results(dataset_results, method_name):
+    if method_name in dataset_results:
+        return dataset_results[method_name]
+
+    target = method_name.lower()
+    for key, value in dataset_results.items():
+        if key.lower() == target:
+            return value
+    return None
 
 def get_file_size(dataset, binary):
     if dataset == "arm32_coreutils":
@@ -32,6 +44,8 @@ def get_file_size(dataset, binary):
             binary_dir = LOADSTAR_HOME / "Dataset" / "NS_2" / "bins"
         elif ns3_pattern.match(binary):
             binary_dir = LOADSTAR_HOME / "Dataset" / "NS_3" / "bins"
+    elif dataset == "openssl_x64":
+        binary_dir = OPENSSL_X64_HOME / "bins"
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
     binary_path = binary_dir / binary
@@ -70,6 +84,8 @@ def get_target_key(dataset, binary):
         # elif ns3_pattern.match(binary):
         #     return "Loadstar NS3"
         return "Loadstar"
+    if dataset == "openssl_x64":
+        return "OpenSSL - x64"
     return None
 
 if __name__ == '__main__':
@@ -85,13 +101,21 @@ if __name__ == '__main__':
     with open(results_file, "r") as f:
         results = json.load(f)
 
-    # plot_order = ["Coreutils ARM32", "Coreutils MIPS", "Coreutils ARM32 LLVM", "Coreutils MIPS LLVM", "Loadstar NS1", "Loadstar NS2", "Loadstar NS3"]
-    plot_order = ["Coreutils - ARM32 - gcc", "Coreutils - MIPS - gcc", "Coreutils - ARM32 - LLVM", "Coreutils - MIPS - LLVM", "Loadstar"]
+    plot_order = [
+        "Coreutils - ARM32 - gcc",
+        "Coreutils - MIPS - gcc",
+        "Coreutils - ARM32 - LLVM",
+        "Coreutils - MIPS - LLVM",
+        "OpenSSL - x64",
+        "Loadstar",
+    ]
     raw_plot_data = {key: [] for key in plot_order}
 
     # 1. Collect Data and Calculate Individual Ratios
     for dataset in results:
-        dataset_result_nsda = results[dataset]["NSDA"]
+        dataset_result_nsda = get_method_results(results[dataset], "NSDA")
+        if not isinstance(dataset_result_nsda, dict):
+            continue
         for binary, res in dataset_result_nsda.items():
             target_key = get_target_key(dataset, binary)
             if target_key in raw_plot_data:
@@ -179,5 +203,5 @@ if __name__ == '__main__':
     handles, labels = axes_list[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.12), fontsize=10)
 
-    plt.savefig("efficiency_plot.pdf", dpi=300, bbox_inches='tight')
+    plt.savefig("efficiency_plot_new.pdf", dpi=300, bbox_inches='tight')
     print("Ordered single-line figure saved.")

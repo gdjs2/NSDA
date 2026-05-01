@@ -1,6 +1,7 @@
 import os
 import networkx as nx
 
+from rich.spinner import Spinner
 from blocks_helper import *
 from ghidra.program.flatapi import FlatProgramAPI # pyright: ignore[reportMissingImports]
 from ghidra.program.model.address import AddressSet # pyright: ignore[reportMissingImports]
@@ -50,19 +51,21 @@ def _bisearch_addr_in_blocks(blocks: list[Block], addr: Address) -> Block|None:
     # logger.error(f"Address {addr} not found in blocks. May be a external reference.")
     return None
 
-def _get_call_edges(blocks: list[Block], listing: Listing) -> list[tuple[Block, Block]]:
+def _get_call_edges(blocks: list[Block], listing: Listing, spinner: Spinner | None = None) -> list[tuple[Block, Block]]:
     """
     Get call edges between blocks.
     Args:
         blocks (list[Block]): List of code blocks.
         listing (Listing): Ghidra listing object to get instructions and references.
+        spinner (Spinner | None): Spinner object for progress indication.
     Returns:
         list[tuple[Block, Block]]: List of tuples representing call edges.
     """
     call_edges = []
     blocks.sort(key=lambda b: b.start_address)
 
-    for block in blocks:
+    for idx, block in enumerate(blocks):
+        if spinner: spinner.update(text=f"[bold yellow]Extracting call edges from block {idx + 1}/{len(blocks)}...[/bold yellow]")
         if block.type != 'Code': continue
         addr_set = AddressSet(block.start_address, block.end_address)
         instructions = listing.getInstructions(addr_set, True)
@@ -75,7 +78,7 @@ def _get_call_edges(blocks: list[Block], listing: Listing) -> list[tuple[Block, 
                         call_edges.append((block, target_block))
     return call_edges
 
-def create_graph(flat_api: FlatProgramAPI) -> nx.DiGraph:
+def create_graph(flat_api: FlatProgramAPI, spinner: Spinner | None = None) -> nx.DiGraph:
     """
     Create a directed graph from the functions in the program.
     Args:
@@ -87,18 +90,22 @@ def create_graph(flat_api: FlatProgramAPI) -> nx.DiGraph:
     listing = program.getListing()
     memory = program.getMemory()
 
-    blocks = extract_all_blocks(listing, memory)
+    if spinner: spinner.update(text=f"[bold yellow]Extracting blocks and edges from the program...[/bold yellow]")
+    blocks = extract_all_blocks(listing, memory, spinner)
     blocks.sort(key=lambda b: b.start_address)
     
-    pseudo_disassemble_blocks(blocks, program)
-    blocks = split_data_blocks(blocks)
+    if spinner: spinner.update(text=f"[bold yellow]Performing pseudo-disassembly...[/bold yellow]")
+    pseudo_disassemble_blocks(blocks, program, spinner)
+    if spinner: spinner.update(text=f"[bold yellow]Splitting data blocks...[/bold yellow]")
+    blocks = split_data_blocks(blocks, spinner)
 
-    fall_through_edges = _get_fallthrough_edges(blocks)
-    call_edges = _get_call_edges(blocks, listing)
+    # fall_through_edges = _get_fallthrough_edges(blocks)
+    if spinner: spinner.update(text=f"[bold yellow]Extracting call edges from the program...[/bold yellow]")
+    call_edges = _get_call_edges(blocks, listing, spinner)
             
     graph = nx.DiGraph()
     graph.add_nodes_from(blocks)
-    graph.add_edges_from(fall_through_edges, type="fallthrough")
+    # graph.add_edges_from(fall_through_edges, type="fallthrough")
     graph.add_edges_from(call_edges, type="call")
 
     return graph

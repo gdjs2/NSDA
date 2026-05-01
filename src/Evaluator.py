@@ -178,19 +178,21 @@ class GhidraEvaluator(Evaluator):
             - List of error data addresses (Debug use, list[int])
         :rtype: tuple[float, float, float, float, float, list[int], list[int]]
         """
+        import tempfile
         from my_program_helper import MyProgram
         from iterative_training import delete_ghidra_cache, save_ghidra_cache
         from ghidra.program.model.address import AddressSpace # pyright: ignore[reportMissingImports]
         
-        delete_ghidra_cache(binary_path)
+        ghidra_project_path = tempfile.mkdtemp(prefix="ghidra_project_")
+
         start_time = datetime.now()
-        with pyghidra.open_program(binary_path, language=language) as flat_api:
+        with pyghidra.open_program(binary_path, project_location=ghidra_project_path, language=language) as flat_api:
             my_program = MyProgram(flat_api, base=base)
 
         process_time = (datetime.now() - start_time).total_seconds()
         if args.get("keep_ghidra_prj") and args.get("keep_ghidra_prj_path"): 
-            save_ghidra_cache(binary_path, args["keep_ghidra_prj_path"], "ghidra")
-        else: delete_ghidra_cache(binary_path)
+            save_ghidra_cache(ghidra_project_path, args["keep_ghidra_prj_path"], "ghidra")
+        else: delete_ghidra_cache(ghidra_project_path)
 
         if args.get("dump_blocks_path") is not None:
             my_program.dump_blocks(args["dump_blocks_path"])

@@ -4,7 +4,10 @@ import toml
 import pyghidra
 import questionary
 
+from pathlib import Path
 from loguru import logger
+from datetime import datetime
+
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
@@ -270,6 +273,34 @@ def display_summary(config):
     console.print(Panel(table, expand=False, border_style="green"))
     console.print(f"[bold green]✅ Wizard Complete. Final configs saved to '{CONFIG_FILE}'.[/bold green]\n")
 
+def dump_result(
+    results: dict[str, dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]],
+    result_path: str,
+    dump_error_list: bool = False
+):
+    import json
+    root = Path(result_path)
+    root.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    result_file = root / f"{timestamp}.json"
+    processed_result = {}
+
+    for dataset_name, r in results.items():
+        processed_result[dataset_name] = {}
+        for evaluator_name, evaluator_results in r.items():
+            processed_result[dataset_name][evaluator_name] = {}
+            for data_name, metrics in evaluator_results.items():
+                if dump_error_list:
+                    error_code_list, error_data_list = metrics[-2], metrics[-1]
+                    error_code_list_str = [hex(code) for code in error_code_list]
+                    error_data_list_str = [hex(code) for code in error_data_list]
+                    processed_result[dataset_name][evaluator_name][data_name] = (*metrics[:5], error_code_list_str, error_data_list_str)
+                else:
+                    processed_result[dataset_name][evaluator_name][data_name] = metrics[:5]
+
+    with open(result_file, "w") as f:
+        json.dump(processed_result, f, indent=4)
+    logger.info(f"Dumped evaluation results to {result_file}.")
 # --- Evaluation Logic ---
 
 def _eval_data(
@@ -415,6 +446,13 @@ def start_evaluation(config):
     else:
         console.print(f"[bold red]Unknown evaluation type: {config['config']['eval_type']}[/bold red]")
         return
+    
+    if config["config"].get("dump_json", False):
+        dump_result(
+            results, 
+            config["config"].get("result_path", "./"),
+            dump_error_list=config["config"].get("dump_error_list", False)
+        )
         
 
 # --- Main Flow ---

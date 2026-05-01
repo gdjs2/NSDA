@@ -2,9 +2,10 @@ import ltn
 
 from datetime import datetime
 from graph_helper import *
+from rich.spinner import Spinner
 
 class MyProgram:
-    def __init__(self: Self, flat_api: FlatProgramAPI, base: int | None = None, without_nn: bool = False) -> None:
+    def __init__(self: Self, flat_api: FlatProgramAPI, base: int | None = None, without_nn: bool = False, spinner: Spinner | None = None) -> None:
         """
         Initialize the Program instance with a FlatProgramAPI instance.
         Args:
@@ -27,29 +28,54 @@ class MyProgram:
                 logger.error(f"Failed to set image base: {e}")
             finally:
                 program.endTransaction(txId, True) 
-            flat_api.analyzeAll(program)
+        
+        if spinner: spinner.update(text=f"[bold yellow]Analyzing program with Ghidra auto-analysis...[/bold yellow]")
+
+        # Customize analysis options
+        # program = flat_api.getCurrentProgram()
+    
+        # 1. Fetch the Analyzer Options for the current program
+        # options = program.getOptions("Analyzers")
+        
+        # # 2. Disable the "Heavy Hitters" (Decompiler, Stack, etc.)
+        # options.setBoolean("Decompiler Parameter ID", False)
+        # options.setBoolean("Decompiler Switch Analysis", False)
+        # options.setBoolean("Stack", False)
+        # options.setBoolean("Call Convention ID", False)
+        # options.setBoolean("Constant Propagation", False)
+        # options.setBoolean("Apply Data Archives", False)
+        
+        # # 3. Explicitly enable the structural essentials 
+        # # (These are usually True by default, but it is safest to enforce them)
+        # options.setBoolean("Disassemble Entry Points", True)
+        # options.setBoolean("ASCII Strings", True)
+        # options.setBoolean("Create Function / Subroutine", True)
+        # options.setBoolean("Reference", True)
+
+        flat_api.analyzeAll(program)
+        # flat_api.analyzeChanges(program)
         
         listing = program.getListing()
         memory = program.getMemory()
         ref_manager = program.getReferenceManager()
         
         # Create relational graph
-        self.graph = create_graph(flat_api)
+        self.graph = create_graph(flat_api, spinner)
 
         # Instance variable `self.blocks` will hold the blocks in sorted order by their start address
         self.blocks: list[Block] = list(self.graph.nodes)
         self.blocks.sort(key=lambda b: b.start_address)
 
         # Get feature vectors for the blocks
-        get_feature_vector(self.blocks, ref_manager, listing, memory)
-        check_compare_branch(self.blocks, program)
+        get_feature_vector(self.blocks, ref_manager, listing, memory, spinner)
+        check_compare_branch(self.blocks, program, spinner)
         # check_very_short(self.blocks)
 
         # Generate embeddings from the feature vectors
         if without_nn:
             self.embeddings = generate_random_embeddings(self.blocks)
         else:
-            self.embeddings = generate_embeddings_from_feature_vector(self.blocks)
+            self.embeddings = generate_embeddings_from_feature_vector(self.blocks, spinner)
         
         self.block2idx = {block: idx for idx, block in enumerate(self.blocks)}
 
