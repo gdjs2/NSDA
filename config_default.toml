@@ -48,6 +48,12 @@ loader = "OpensslDataLoader"
 base = 0x400000
 language = "x86:LE:64:default"
 
+[dataset.chromium_pe_x64]
+path = "./Datasets/chromium-PE-x64"
+loader = "ChromiumDataLoader"
+base = 0x0
+language = "x86:LE:64:default"
+
 [evaluator.nsda]
 iteration_limit = 5
 epoches_limit = 500

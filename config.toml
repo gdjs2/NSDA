@@ -1,12 +1,12 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
-eval_type = "Dataset Evaluation"
+eval_type = "Subset Evaluation"
 dump_json = true
-dump_error_list = true
+dump_error_list = false
 result_path = "./eval_results"
-log_file = "/tmp/nsda.log"
+log_file = "./nsda_apr30.log"
 log_level = "info"
-datasets = [ "loadstar",]
+datasets = [ "loadstar", "arm32_coreutils", "arm32_coreutils_llvm", "mips_coreutils", "mips_coreutils_llvm", "openssl_x64",]
 evaluator = [ "nsda",]
 
 [dataset.loadstar]
@@ -14,12 +14,14 @@ path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
 base = 0
 language = "ARM:LE:32:v5"
+subset = [ "acos_fbd.app",]
 
 [dataset.arm32_coreutils]
 path = "./Datasets/coreutils-arm"
 loader = "ARMCoreutilsDataLoader"
 base = 65536
 language = "ARM:LE:32:v5"
+subset = [ "base64",]
 
 [dataset.arm32_coreutils_llvm]
 path = "./Datasets/coreutils-arm-llvm"
@@ -27,12 +29,14 @@ loader = "ARMCoreutilsDataLoader"
 base = 0
 language = "ARM:LE:32:v5"
 llvm_arm32 = true
+subset = [ "base64",]
 
 [dataset.mips_coreutils]
 path = "./Datasets/coreutils-mips"
 loader = "MIPSCoreutilsDataLoader"
 base = 4194304
 language = "MIPS:BE:32:default"
+subset = [ "base64",]
 
 [dataset.mips_coreutils_llvm]
 path = "./Datasets/coreutils-mips-llvm"
@@ -40,12 +44,21 @@ loader = "MIPSCoreutilsDataLoader"
 base = 0
 language = "MIPS:BE:32:default"
 llvm_arm32 = true
+subset = [ "base64",]
 
 [dataset.openssl_x64]
 path = "./Datasets/OpenSSL-x64"
 loader = "OpensslDataLoader"
 base = 4194304
 language = "x86:LE:64:default"
+subset = [ "openssl_O0",]
+
+[dataset.chromium_pe_x64]
+path = "./Datasets/chromium-PE-x64"
+loader = "ChromiumDataLoader"
+base = 0
+language = "x86:LE:64:default"
+subset = []
 
 [evaluator.nsda]
 iteration_limit = 5
