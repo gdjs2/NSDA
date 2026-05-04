@@ -87,3 +87,10 @@ embedding_dim = 128
 lstm_units = 64
 
 [evaluator.ddisasm]
+
+# [evaluator.segmentednsda]
+# iteration_limit = 3
+# epoches_limit = 500
+# keep_ghidra_prj = false
+# keep_ghidra_prj_path = "./saved_ghidra_prjs"
+# function_boundary_path = "./Datasets/chromium-PE-x64/chrome.dll.gt"

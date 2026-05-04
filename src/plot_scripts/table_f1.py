@@ -15,7 +15,7 @@ def get_subset_name(dataset, binary):
     if dataset == "mips_coreutils_llvm":
         return "Coreutils - MIPS - LLVM"
     
-    if dataset == "Loadstar":
+    if dataset == "loadstar":
         ns1_pattern = re.compile(r'^\d{1,3}(?:\.\d{1,3}){3}\.PRG$')
         ns2_pattern = re.compile(r'^\d{1,3}(?:_[A-Za-z0-9]+)?\.PRG$')
         ns3_pattern = re.compile(r'^[A-Za-z0-9_]+\.app$')
@@ -41,7 +41,8 @@ if __name__ == '__main__':
 
     # Specific rows and columns order
     rows = ["Coreutils - ARM32", "Coreutils - MIPS", "Coreutils - ARM32 - LLVM", "Coreutils - MIPS - LLVM", "PLC - NS1", "PLC - NS2", "PLC - NS3"]
-    cols = ["Ghidra", "Ddisasm", "Loadstar", "NSDA", "ProbNSDA"]
+    # cols = ["Ghidra", "Ddisasm", "Loadstar", "NSDA", "ProbNSDA"]
+    cols = ["ghidra", "ddisasm", "loadstar", "nsda", "probnsda"]
     
     # Store lists of metrics: table_stats[row][col] = {"p": [], "r": [], "f1": []}
     table_stats = {row: {col: {"p": [], "r": [], "f1": []} for col in cols} for row in rows}

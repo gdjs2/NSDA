@@ -1,6 +1,7 @@
 from loguru import logger
 import pyghidra
 
+from pathlib import Path
 from abc import ABC, abstractmethod
 from datetime import datetime
 from EvaluatorRegistry import register_evaluator
@@ -78,6 +79,27 @@ class NSDAEvaluator(Evaluator):
         from iterative_training import iterative_training
         return iterative_training(binary_path, code_set, base=base, iteration_limit=args["iteration_limit"], epoches_limit=args["epoches_limit"], keep_ghidra_prj=args["keep_ghidra_prj"], keep_ghidra_prj_path=args["keep_ghidra_prj_path"], language=language, spinner=spinner)
 
+# class SegmentedNSDAEvaluator(Evaluator):
+#     def evaluate(
+#         self, 
+#         binary_path: str,
+#         base: int | None,
+#         language: str,
+#         code_set: set[int],
+#         spinner: Spinner | None,
+#         args: dict,
+#     ) -> Path:
+#         """
+#         Segmented NSDA Evaluator.
+#         """
+#         from iterative_training import segmented_iterative_training
+#         function_boundary_path = args.get("function_boundary_path")
+#         if function_boundary_path is None:
+#             raise ValueError("function_boundary_path is required for SegmentedNSDAEvaluator")
+#         with open(function_boundary_path, "r") as f:
+#             function_boundaries = sorted((int(x, 16), int(y, 16)) for x, y in (line.strip().split() for line in f))
+#         return segmented_iterative_training(binary_path, code_set, function_boundaries, segment_size=1024 * 1024, base=base, language=language, spinner=spinner)
+    
 @register_evaluator
 class NSDAWoRulesEvaluator(Evaluator):
     def evaluate(
@@ -309,9 +331,9 @@ class LoadstarEvaluator(Evaluator):
         import pandas as pd
         from pathlib import Path
         from loguru import logger
-        from tensorflow import keras # pyright: ignore[reportAttributeAccessIssue] 
-        from tensorflow.keras import layers # pyright: ignore[reportMissingImports]
-        
+        from tensorflow import keras # type: ignore
+        from tensorflow.keras import layers # type: ignore
+
         # Add Loadstar to path to import e2e_pipeline
         loadstar_home = Path(args["loadstar_home"])
         loadstar_home_str = str(loadstar_home)
@@ -425,7 +447,7 @@ class LoadstarEvaluator(Evaluator):
         del model
         import gc
         gc.collect()
-        from tensorflow.keras import backend as K # pyright: ignore[reportMissingImports]
+        from tensorflow.keras import backend as K # type: ignore
         K.clear_session()
         r2.quit()
         
@@ -521,3 +543,4 @@ class SegmentedNSDAEvaluator(Evaluator):
         """
         pass
         
+

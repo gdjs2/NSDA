@@ -157,7 +157,7 @@ class ARMCoreutilsDataLoader(DataLoader):
                 code_set = set()
                 for row in reader:
                     if row[3] == "0":
-                        code_set.add(int(row[0], 16))
+                        code_set.add(range(int(row[0], 16), int(row[0], 16) + 4))
             
             data_dict[b.name] = Data(
                 name=b.name,
@@ -200,7 +200,7 @@ class MIPSCoreutilsDataLoader(DataLoader):
                 code_set = set()
                 for row in reader:
                     if row[3] == "0":
-                        code_set.add(int(row[0], 16))
+                        code_set.add(range(int(row[0], 16), int(row[0], 16) + 4))
             
             data_dict[b.name] = Data(
                 name=b.name,
@@ -277,12 +277,8 @@ class ChromiumDataLoader(DataLoader):
                 start, end = line.split() 
                 start_n = int(start, 16)
                 end_n = int(end, 16)
-                # code_set.update(range(start_n, end_n))
-                # if start_n in code_set:
-                #     logger.warning(f"duplicated {start} in {label_file}.")
                 code_set.add(start_n)
 
-        print(f"Loaded {len(code_set)} code addresses from {label_file}.")
         return {
              binary_file.name: Data(
                 name=binary_file.name,

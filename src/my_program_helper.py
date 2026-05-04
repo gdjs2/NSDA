@@ -9,7 +9,9 @@ class MyProgram:
         self: Self, 
         flat_api: FlatProgramAPI, 
         without_nn: bool = False, 
-        spinner: Spinner | None = None
+        spinner: Spinner | None = None,
+        start_addr: Address | None = None,
+        end_addr: Address | None = None,
     ) -> None:
         """
         Initialize the Program instance with a FlatProgramAPI instance.
@@ -24,7 +26,7 @@ class MyProgram:
         ref_manager = program.getReferenceManager()
         
         # Create relational graph
-        self.graph = create_graph(flat_api, spinner)
+        self.graph = create_graph(flat_api, spinner, start_addr, end_addr)
 
         # Instance variable `self.blocks` will hold the blocks in sorted order by their start address
         self.blocks: list[Block] = list(self.graph.nodes)

@@ -110,13 +110,168 @@ class Block:
         """
         return self.end_address.subtract(self.start_address) + 1
 
-def extract_all_blocks(listing: Listing, memory: Memory, spinner: Spinner | None = None) -> list[Block]:
+def extract_blocks_in_range(
+    listing: Listing, 
+    memory: Memory,
+    start_addr: Address,
+    end_addr: Address,
+    spinner: Spinner | None = None
+) -> list[Block]:
+    """
+    Extract blocks in a specific address range, aligned to nearest code units.
+    Args:
+        listing (Listing): The program's listing containing code units.
+        memory (Memory): The program's memory containing blocks.
+        start_addr (Address): The starting address of the range (will be aligned to nearest code unit).
+        end_addr (Address): The ending address of the range (will be aligned to nearest code unit).
+        spinner (Spinner | None): Optional spinner for displaying progress.
+    Returns:
+        list[Block]: A list of Block instances within the specified address range.
+    """
+    blocks: list[Block] = []
+    
+    # Align start_addr to the nearest code unit
+    aligned_start = listing.getCodeUnitAt(start_addr)
+    if aligned_start is None:
+        # If no code unit at start_addr, find the previous one
+        aligned_start = listing.getCodeUnitBefore(start_addr)
+        if aligned_start is None:
+            return blocks
+        aligned_start = aligned_start.getMinAddress()
+    else:
+        aligned_start = aligned_start.getMinAddress()
+    
+    # Align end_addr to the nearest code unit
+    aligned_end = listing.getCodeUnitAt(end_addr)
+    if aligned_end is None:
+        # If no code unit at end_addr, find the previous one
+        aligned_end = listing.getCodeUnitBefore(end_addr)
+        if aligned_end is None:
+            return blocks
+        aligned_end = aligned_end.getMaxAddress()
+    else:
+        aligned_end = aligned_end.getMaxAddress()
+    
+    # Ensure aligned range is valid
+    if aligned_start > aligned_end:
+        return blocks
+    
+    # Get the memory block containing the start address
+    mmry_blk = memory.getBlockContaining(aligned_start)
+    if mmry_blk is None:
+        return blocks
+    
+    is_executable = mmry_blk.isExecute()
+    section_name = mmry_blk.getName()
+    
+    in_code_block = False
+    code_start = None
+    
+    in_data_block = False
+    data_start = None
+    
+    in_unknown_block = False
+    unknown_start = None
+    
+    addr = aligned_start
+    start_offset = aligned_start.getOffset()
+    end_offset = aligned_end.getOffset()
+    
+    while addr <= aligned_end:
+        current_offset = addr.getOffset()
+        if spinner: 
+            spinner.update(text=f"[bold yellow]Extracting blocks in range ({(current_offset - start_offset) * 100 // (end_offset - start_offset + 1)}%) [/bold yellow]")
+        
+        code_unit = listing.getCodeUnitAt(addr)
+        
+        if isinstance(code_unit, Instruction):
+            code_unit: Instruction = code_unit
+            # Close any ongoing data block
+            if in_data_block:
+                block_end = code_unit.getMinAddress().subtract(1)
+                blocks.append(Block(data_start, block_end, "Data", section_name, is_executable))
+                in_data_block = False
+                data_start = None
+            
+            if in_unknown_block:
+                block_end = code_unit.getMinAddress().subtract(1)
+                blocks.append(Block(unknown_start, block_end, "Unknown", section_name, is_executable))
+                in_unknown_block = False
+                unknown_start = None
+            
+            if not in_code_block:
+                code_start = addr
+                in_code_block = True
+            
+            flow_type = code_unit.getFlowType()
+            
+            if flow_type is not None and (flow_type.isCall() or flow_type.isJump() or flow_type.isTerminal()):
+                block_end = code_unit.getMaxAddress()
+                blocks.append(Block(code_start, block_end, "Code", section_name, is_executable))
+                in_code_block = False
+                code_start = None
+        
+        else:
+            if code_unit.getMnemonicString() == "??":  # Unknown Block
+                # Close any ongoing code block
+                if in_code_block:
+                    block_end = code_unit.getMinAddress().subtract(1)
+                    blocks.append(Block(code_start, block_end, "Code", section_name, is_executable))
+                    in_code_block = False
+                    code_start = None
+                
+                if in_data_block:
+                    block_end = code_unit.getMinAddress().subtract(1)
+                    blocks.append(Block(data_start, block_end, "Data", section_name, is_executable))
+                    in_data_block = False
+                    data_start = None
+                
+                if not in_unknown_block:
+                    unknown_start = addr
+                    in_unknown_block = True
+            else:  # Data Block
+                # Close any ongoing code block
+                if in_code_block:
+                    block_end = code_unit.getMinAddress().subtract(1)
+                    blocks.append(Block(code_start, block_end, "Code", section_name, is_executable))
+                    in_code_block = False
+                    code_start = None
+                
+                if in_unknown_block:
+                    block_end = code_unit.getMinAddress().subtract(1)
+                    blocks.append(Block(unknown_start, block_end, "Unknown", section_name, is_executable))
+                    in_unknown_block = False
+                    unknown_start = None
+                
+                if not in_data_block:
+                    data_start = addr
+                    in_data_block = True
+        
+        addr = addr.add(code_unit.getLength())
+    
+    # Handle block at the very end
+    if in_code_block:
+        blocks.append(Block(code_start, aligned_end, "Code", section_name, is_executable))
+    if in_data_block:
+        blocks.append(Block(data_start, aligned_end, "Data", section_name, is_executable))
+    if in_unknown_block:
+        blocks.append(Block(unknown_start, aligned_end, "Unknown", section_name, is_executable))
+    
+    return blocks
+
+def extract_all_blocks(
+    listing: Listing, 
+    memory: Memory, 
+    spinner: Spinner | None = None
+) -> list[Block]:
     """
     Extract all code and data blocks from the program's listing and memory.
     Args:
         listing (Listing): The program's listing containing code units.
         memory (Memory): The program's memory containing blocks.
         spinner (Spinner | None): Optional spinner for displaying progress.
+        segmented (bool): Whether to segment NSDA.
+        segmented_size (int): Size of each segment if segmented is True.
     Returns:
         list[Block]: A combined list of code and data Block instances.
     """

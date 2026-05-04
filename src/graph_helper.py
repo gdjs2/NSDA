@@ -78,11 +78,19 @@ def _get_call_edges(blocks: list[Block], listing: Listing, spinner: Spinner | No
                         call_edges.append((block, target_block))
     return call_edges
 
-def create_graph(flat_api: FlatProgramAPI, spinner: Spinner | None = None) -> nx.DiGraph:
+def create_graph(
+    flat_api: FlatProgramAPI, 
+    spinner: Spinner | None = None,
+    start_addr: Address | None = None,
+    end_addr: Address | None = None,
+) -> nx.DiGraph:
     """
     Create a directed graph from the functions in the program.
     Args:
         flat_api (FlatProgramAPI): Flat API instance to interact with the Ghidra program.
+        spinner (Spinner | None): Spinner object for progress indication.
+        start_addr (Address | None): The starting address of the range to analyze.
+        end_addr (Address | None): The ending address of the range to analyze.
     Returns:
         nx.DiGraph: Relational graph of the program.
     """
@@ -91,7 +99,10 @@ def create_graph(flat_api: FlatProgramAPI, spinner: Spinner | None = None) -> nx
     memory = program.getMemory()
 
     if spinner: spinner.update(text=f"[bold yellow]Extracting blocks and edges from the program...[/bold yellow]")
-    blocks = extract_all_blocks(listing, memory, spinner)
+    if start_addr is not None and end_addr is not None:
+        blocks = extract_blocks_in_range(listing, memory, start_addr, end_addr, spinner)
+    else:
+        blocks = extract_all_blocks(listing, memory, spinner)
     blocks.sort(key=lambda b: b.start_address)
     
     if spinner: spinner.update(text=f"[bold yellow]Performing pseudo-disassembly...[/bold yellow]")
