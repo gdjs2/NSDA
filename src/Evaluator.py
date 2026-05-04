@@ -225,7 +225,11 @@ class GhidraEvaluator(Evaluator):
                 transaction_id = program.startTransaction("Run Auto-Analysis")
                 auto_analyze_time = datetime.now()
                 try:
-                    flat_api.analyzeAll(program)
+                    from ghidra.app.plugin.core.analysis import AutoAnalysisManager
+                    mgr = AutoAnalysisManager.getAnalysisManager(program)
+                    mgr.initializeOptions()
+                    mgr.reAnalyzeAll(None) # type: ignore
+                    flat_api.analyzeChanges(program)
                 finally:
                     program.endTransaction(transaction_id, True)
                 auto_analyze_time = (datetime.now() - auto_analyze_time).total_seconds()
@@ -246,8 +250,8 @@ class GhidraEvaluator(Evaluator):
                     proceeded_bytes += cu.getLength()
                     if spinner: spinner.update(text=f"[bold yellow]Evaluating... {proceeded_bytes/total_memory*100:.2f}% memory processed[/bold yellow]")
 
-                program.release(nsda_domain_object_user)
                 load_result.save(pyghidra.task_monitor())
+                program.release(nsda_domain_object_user)
 
         hits = code_results_set & code_set
         error_code_list = list(code_results_set - code_set)
@@ -492,5 +496,28 @@ class DdisasmEvaluator(Evaluator):
 
         return code_precision, code_recall, process_time, 0.0, 0.0, error_code_list, error_data_list
 
+class SegmentedNSDAEvaluator(Evaluator):
+    def evaluate(
+        self, 
+        binary_path: str,
+        base: int | None,
+        language: str,
+        code_set: set[int],
+        spinner: Spinner | None,
+        args: dict,
+    ):
+        """
+        Segmented NSDA Evaluator.
+        This function will keep the ghidra project to keep_ghidra_prj_path by default.
 
+        :param args: Additional arguments for evaluator.
+        :type args: dict
+            - iteration_limit (int): Maximum number of iterations for training.
+            - epoches_limit (int): Maximum number of epochs for training.
+            - keep_ghidra_prj_path (str | None): Path to save the Ghidra project if keeping. 
+            - function_boundary_path (str | None): Path to the function boundary if evaluating on function level or None if on byte level.
+        :return: A tuple containing evaluation metrics. (Currently returns dummy values, to be implemented)
+        :rtype: tuple[float, float, float, float, float, list[int], list[int]]
+        """
+        pass
         

@@ -7,14 +7,14 @@ result_path = "./eval_results"
 log_file = "/tmp/nsda_test.log"
 log_level = "info"
 datasets = [ "loadstar",]
-evaluator = [ "nsda", "ghidra",]
+evaluator = [ "ghidra",]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
 base = 0
 language = "ARM:LE:32:v5"
-subset = [ "acos_fbd.app",]
+subset = [ "5.22.152.8.PRG",]
 
 [dataset.arm32_coreutils]
 path = "./Datasets/coreutils-arm"
