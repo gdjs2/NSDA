@@ -142,8 +142,8 @@ class ARMCoreutilsDataLoader(DataLoader):
         :rtype: dict[str, Data] | None
         """
         home = Path(coreutils_arm_home)
-        binary_path = home / "build-output-armv4" / "stripped" / "usr" / "local" / "bin"
-        label_path = home / "build-output-armv4" / "labels"
+        binary_path = home / "stripped" / "usr" / "local" / "bin"
+        label_path = home / "labels"
         binaries = list(binary_path.glob("*"))
 
         data_dict = {}
@@ -185,8 +185,8 @@ class MIPSCoreutilsDataLoader(DataLoader):
         :rtype: dict[str, Data] | None
         """
         home = Path(coreutils_mips_home)
-        binary_path = home / "build-output-mips" / "stripped" / "usr" / "local" / "bin"
-        label_path = home / "build-output-mips" / "labels"
+        binary_path = home / "stripped" / "usr" / "local" / "bin"
+        label_path = home / "labels"
         binaries = list(binary_path.glob("*"))
 
         data_dict = {}

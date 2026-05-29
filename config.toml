@@ -16,30 +16,33 @@ base = 0
 language = "ARM:LE:32:v5"
 
 [dataset.arm32_coreutils]
-path = "./Datasets/coreutils-arm"
+path = "./Datasets/coreutils/arm32-gcc"
 loader = "ARMCoreutilsDataLoader"
 base = 65536
 language = "ARM:LE:32:v5"
+subset = ["base64"]
 
 [dataset.arm32_coreutils_llvm]
-path = "./Datasets/coreutils-arm-llvm"
+path = "./Datasets/coreutils/arm32-llvm"
 loader = "ARMCoreutilsDataLoader"
 base = 0
 language = "ARM:LE:32:v5"
 llvm_arm32 = true
+subset = ["base64"]
 
 [dataset.mips_coreutils]
-path = "./Datasets/coreutils-mips"
+path = "./Datasets/coreutils/mips-gcc"
 loader = "MIPSCoreutilsDataLoader"
 base = 4194304
 language = "MIPS:BE:32:default"
+subset = ["base64"]
 
 [dataset.mips_coreutils_llvm]
-path = "./Datasets/coreutils-mips-llvm"
+path = "./Datasets/coreutils/mips-llvm"
 loader = "MIPSCoreutilsDataLoader"
 base = 0
 language = "MIPS:BE:32:default"
-llvm_arm32 = true
+subset = ["base64"]
 
 [dataset.openssl_x64]
 path = "./Datasets/OpenSSL-x64"
