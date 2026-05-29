@@ -241,7 +241,7 @@ class GhidraEvaluator(Evaluator):
                 transaction_id = program.startTransaction("Run Auto-Analysis")
                 auto_analyze_time = datetime.now()
                 try:
-                    from ghidra.app.plugin.core.analysis import AutoAnalysisManager
+                    from ghidra.app.plugin.core.analysis import AutoAnalysisManager # type: ignore
                     mgr = AutoAnalysisManager.getAnalysisManager(program)
                     mgr.initializeOptions()
                     mgr.reAnalyzeAll(None) # type: ignore
