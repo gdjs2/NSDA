@@ -1,18 +1,6 @@
 [submodule "Datasets/Loadstar"]
 	path = Datasets/Loadstar
 	url = https://github.com/Benksy/Loadstar.git
-[submodule "Datasets/coreutils-arm"]
-	path = Datasets/coreutils-arm
-	url = git@github.com:Q1IQ/coreutils-arm.git
-[submodule "Datasets/coreutils-mips"]
-	path = Datasets/coreutils-mips
-	url = https://github.com/gdjs2/coreutils-mips.git
-[submodule "Datasets/coreutils-arm-llvm"]
-	path = Datasets/coreutils-arm-llvm
-	url = git@github.com:gdjs2/coreutils-arm-llvm.git
-[submodule "Datasets/coreutils-mips-llvm"]
-	path = Datasets/coreutils-mips-llvm
-	url = git@github.com:gdjs2/coreutils-mips-llvm.git
 [submodule "Datasets/OpenSSL-x64"]
 	path = Datasets/OpenSSL-x64
 	url = git@github.com:gdjs2/OpenSSL-x64.git
