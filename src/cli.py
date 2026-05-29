@@ -7,6 +7,7 @@ import questionary
 from pathlib import Path
 from loguru import logger
 from datetime import datetime
+from argparse import ArgumentParser
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -24,13 +25,31 @@ DEFAULT_CONFIG_FILE = "config_default.toml"
 CONFIG_FILE = "config.toml"
 console = Console()
 
+VALID_DATASET_EVALUATOR = {
+    ("loadstar", "nsda"), ("loadstar", "ghidra"), ("loadstar", "nsdaworules"), ("loadstar", "probnsda"), ("loadstar", "loadstar"), ("loadstar", "segmentednsda"),
+
+    ("arm32_coreutils", "nsda"), ("arm32_coreutils", "ghidra"), ("arm32_coreutils", "nsdaworules"), ("arm32_coreutils", "probnsda"), ("arm32_coreutils", "ddisasm"), ("arm32_coreutils", "loadstar"), ("arm32_coreutils", "segmentednsda"),
+
+    ("arm32_coreutils_llvm", "nsda"), ("arm32_coreutils_llvm", "ghidra"), ("arm32_coreutils_llvm", "nsdaworules"), ("arm32_coreutils_llvm", "probnsda"), ("arm32_coreutils_llvm", "ddisasm"), ("arm32_coreutils_llvm", "loadstar"), ("arm32_coreutils_llvm", "segmentednsda"),
+
+    ("mips_coreutils", "nsda"), ("mips_coreutils", "ghidra"), ("mips_coreutils", "nsdaworules"), ("mips_coreutils", "probnsda"), ("mips_coreutils", "ddisasm"), ("mips_coreutils", "segmentednsda"),
+
+    ("mips_coreutils_llvm", "nsda"), ("mips_coreutils_llvm", "ghidra"), ("mips_coreutils_llvm", "nsdaworules"), ("mips_coreutils_llvm", "probnsda"), ("mips_coreutils_llvm", "ddisasm"), ("mips_coreutils_llvm", "segmentednsda"),
+
+    ("openssl_x64", "nsda"), ("openssl_x64", "ghidra"), ("openssl_x64", "nsdaworules"), ("openssl_x64", "probnsda"), ("openssl_x64", "ddisasm"), ("openssl_x64", "segmentednsda"),
+
+    ("chromium_pe_x64", "ghidra"), ("chromium_pe_x64", "segmentednsda")
+
+}
+
 EVALUATOR_NAME_MAP = {
     "nsda": "NSDA",
     "ghidra": "Ghidra",
     "nsdaworules": "NSDAWoRules",
     "probnsda": "ProbNSDA",
-    "ddisasm": "Ddisasm",
-    "loadstar": "LoadStar",
+    "ddisasm": "DDisasm",
+    "loadstar": "Loadstar",
+    "segmentednsda": "SegmentedNSDA"
 }
 
 # --- Utility Functions ---
@@ -52,29 +71,16 @@ def config_logger(
         logger.add(log_file, level=log_level)
     return 
 
-def check_config():
-    if not os.path.exists(CONFIG_FILE):
-        console.print(f"[bold yellow]Warning: '{CONFIG_FILE}' not found. Checking for default configuration ({DEFAULT_CONFIG_FILE})...[/bold yellow]")
-        if not os.path.exists(DEFAULT_CONFIG_FILE):
-            console.print(f"[bold red]Error: Default configuration '{DEFAULT_CONFIG_FILE}' not found. [/bold red]")
-            sys.exit(1)
-        else:
-            console.print(f"[bold green]Found default configuration. Copying to '{CONFIG_FILE}'...[/bold green]")
-            with open(DEFAULT_CONFIG_FILE, "r") as src, open(CONFIG_FILE, "w") as dst:
-                dst.write(src.read())
-            console.print(f"[bold green]Default configuration copied successfully.[/bold green]")
-
-def load_config():
-    if not os.path.exists(CONFIG_FILE):
-        console.print(f"[bold red]Error: '{CONFIG_FILE}' not found.[/bold red]")
+def load_config(config_path: str):
+    if not os.path.exists(config_path):
+        console.print(f"[bold red]Error: '{config_path}' not found.[/bold red]")
         sys.exit(1)
-    return toml.load(CONFIG_FILE)
+    return toml.load(config_path)
 
-def save_config(config_data):
-    """Rule 1: Save back to the configuration file immediately."""
-    with open(CONFIG_FILE, "w") as f:
+def save_config(config_data, config_path: str):
+    with open(config_path, "w") as f:
         toml.dump(config_data, f)
-    console.print(f"[italic green]  ➜ Settings saved to {CONFIG_FILE}[/italic green]")
+    console.print(f"[italic green]  ➜ Settings saved to {config_path}[/italic green]")
 
 def check_eval_type(config):
     """Check the evaluation type and enforce subset field for each dataset."""
@@ -157,8 +163,6 @@ def global_settings_menu(config):
                 check_eval_type(config)
         else:
             edit_field(c_dict, choice, "Set")
-            
-        save_config(config)
 
 def datasets_evaluator_selection_menu(config):
     """Select the datasets and evaluators to activate."""
@@ -179,7 +183,6 @@ def datasets_evaluator_selection_menu(config):
     
     if selected_ds is not None:
         c_dict["datasets"] = selected_ds
-        save_config(config)
 
     selected_ev = questionary.checkbox(
         "Select EVALUATOR(s) to run:",
@@ -188,7 +191,6 @@ def datasets_evaluator_selection_menu(config):
     
     if selected_ev is not None:
         c_dict["evaluator"] = selected_ev
-        save_config(config)
 
 def configure_datasets_menu(config):
     """Datasets Configuration submenu."""
@@ -217,7 +219,6 @@ def configure_datasets_menu(config):
             if field_choice == "BACK" or field_choice is None: break
             
             edit_field(ds_config, field_choice, f"[{ds_choice}]")
-            save_config(config)
 
 def configure_evaluators_menu(config):
     """Evaluators Configuration submenu."""
@@ -255,8 +256,6 @@ def configure_evaluators_menu(config):
                         del ev_config["keep_ghidra_prj_path"] # Path must be None/removed
             else:
                 edit_field(ev_config, field_choice, f"[{ev_choice}]")
-            
-            save_config(config)
 
 def display_summary(config):
     console.print("\n")
@@ -271,7 +270,22 @@ def display_summary(config):
     table.add_row("Global", "Active Evaluators", ", ".join(c_dict.get("evaluator", [])))
     
     console.print(Panel(table, expand=False, border_style="green"))
-    console.print(f"[bold green]✅ Wizard Complete. Final configs saved to '{CONFIG_FILE}'.[/bold green]\n")
+    console.print("[bold green]✅ Wizard Complete. Ready to start evaluation.[/bold green]\n")
+
+def maybe_save_config_before_evaluation(config):
+    should_save = questionary.confirm(
+        "Do you want to save this configuration to a file before starting evaluation?",
+        default=False
+    ).ask()
+    if should_save:
+        target_path = questionary.text(
+            "Enter the config output path:",
+            default=CONFIG_FILE
+        ).ask()
+        if target_path:
+            save_config(config, target_path)
+        else:
+            console.print("[yellow]Skipping config save because no output path was provided.[/yellow]")
 
 def dump_result(
     results: dict[str, dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]],
@@ -317,7 +331,8 @@ def _eval_data(
         base=base,
         language=language,
         args=args,
-        spinner=spinner
+        spinner=spinner,
+        aux=data.aux
     )
 
 def _eval_dataset(
@@ -325,6 +340,7 @@ def _eval_dataset(
     data: dict[str, Data], 
     base: int | None,
     language: str = "ARM:LE:32:v5",
+    llvm_arm32: bool = False,
     subset: set[str] | None = None,
 ) -> dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]:   # [code_precision, code_recall, preprocessing_time, training_time, redisassemble_time, error_code_list, error_data_list]
     if subset is None: console.print(f"[bold cyan]Evaluating dataset with {len(data)} samples.[/bold cyan]")
@@ -334,6 +350,8 @@ def _eval_dataset(
     for evaluator_name, evaluator_info in evaluators.items():
         evaluator = evaluator_info["cls"]
         args = evaluator_info.get("args", {})
+        args["llvm_arm32"] = llvm_arm32
+
         console.print(f"[bold cyan]Using evaluator: {evaluator_name} with args: {args}[/bold cyan]")
         results[evaluator_name] = {}
 
@@ -403,11 +421,15 @@ def _eval_datasets(
             console.print(f"[bold red]Error: Failed to load data for dataset {dataset_name} using {dataloader_name}. Skipping...[/bold red]")
             continue
         console.print(f"[bold cyan]Loaded {len(data)} samples from dataset {dataset_name} using {dataloader_name}.[/bold cyan]")
+
+        subevaluators = {ev_name: ev_config for ev_name, ev_config in evaluators.items() if (dataset_name.lower(), ev_name.lower()) in VALID_DATASET_EVALUATOR}
+
         results[dataset_name] = _eval_dataset(
-            evaluators,
+            subevaluators,
             data, 
             base=dataset_config.get("base", None),
             language=dataset_config.get("language", None),
+            llvm_arm32=dataset_config.get("llvm_arm32", False),
             subset=None if not subset_flg else set(dataset_config.get("subset", []))
         )
     return results
@@ -455,19 +477,35 @@ def start_evaluation(config):
         )
         
 
+def parse_args():
+    parser = ArgumentParser(description="NSDA evaluation CLI")
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        help="Path to a TOML config file. When provided, evaluation runs directly without interactive prompts."
+    )
+    return parser.parse_args()
+
 # --- Main Flow ---
 
 def main():
-    console.print("[bold cyan]Starting Configuration Wizard...[/bold cyan]")
+    args = parse_args()
 
-    # 1. Check for config file
-    check_config()
-
-    # 2. Load config
-    config = load_config()
-
-    # 3. Check evaluation type
+    config_path = args.config if args.config else DEFAULT_CONFIG_FILE
+    config = load_config(config_path)
     check_eval_type(config)
+
+    if args.config:
+        console.print(f"[bold cyan]Loading config from {config_path} and starting evaluation...[/bold cyan]")
+        config_logger(
+            log_file=config["config"]["log_file"],
+            log_level=config["config"]["log_level"]
+        )
+        start_evaluation(config)
+        return
+
+    console.print("[bold cyan]Starting Configuration Wizard...[/bold cyan]")
 
     while True:
         menu_choice = questionary.select(
@@ -491,6 +529,7 @@ def main():
             configure_evaluators_menu(config)
         elif menu_choice == "EXIT" or menu_choice is None:
             display_summary(config)
+            maybe_save_config_before_evaluation(config)
             break
     
     config_logger(

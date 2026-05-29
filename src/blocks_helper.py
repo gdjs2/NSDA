@@ -6,7 +6,7 @@ from loguru import logger
 from rich.spinner import Spinner
 from typing import Literal, Self
 
-from ghidra.program.model.address import Address # type: ignore
+from ghidra.program.model.address import Address, AddressSpace # type: ignore
 from ghidra.program.model.pcode import PcodeOp # type: ignore
 from ghidra.program.model.listing import Instruction, Listing, Program # type: ignore
 from ghidra.program.model.scalar import Scalar # type: ignore
@@ -157,7 +157,7 @@ def extract_blocks_in_range(
         return blocks
     
     # Get the memory block containing the start address
-    mmry_blk = memory.getBlockContaining(aligned_start)
+    mmry_blk = memory.getBlock(aligned_start)
     if mmry_blk is None:
         return blocks
     
@@ -180,7 +180,7 @@ def extract_blocks_in_range(
     while addr <= aligned_end:
         current_offset = addr.getOffset()
         if spinner: 
-            spinner.update(text=f"[bold yellow]Extracting blocks in range ({(current_offset - start_offset) * 100 // (end_offset - start_offset + 1)}%) [/bold yellow]")
+            spinner.update(text=f"[bold yellow]Extracting blocks in range [{aligned_start} - {aligned_end}] ({(current_offset - start_offset) * 100 // (end_offset - start_offset + 1)}%) [/bold yellow]")
         
         code_unit = listing.getCodeUnitAt(addr)
         
@@ -284,6 +284,9 @@ def extract_all_blocks(
 
         addr = mmry_blk.getStart()
         blk_end_addr = mmry_blk.getEnd().subtract(1)
+
+        if addr.getAddressSpace().getType() != AddressSpace.TYPE_RAM:
+            continue
 
         is_executable = mmry_blk.isExecute()
 

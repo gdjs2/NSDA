@@ -1,26 +1,28 @@
 [config]
-ghidra_home = "/opt/ghidra_12.0.4_PUBLIC"
+ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
 eval_type = "Dataset Evaluation"
 dump_json = true
-dump_error_list = true
+dump_error_list = false
 result_path = "./eval_results"
-log_file = "./nsda_eval.log"
+log_file = "./nsda_eval_May26.log"
 log_level = "info"
 
-datasets = ["openssl_x64"]
-evaluator = [ "nsda", "nsdaworules", "probnsda", "ghidra", "ddisasm",]
+datasets = ["loadstar", "arm32_coreutils", "arm32_coreutils_llvm", "mips_coreutils", "mips_coreutils_llvm", "openssl_x64"]
+evaluator = [ "nsda", "nsdaworules", "probnsda", "ghidra", "ddisasm", "loadstar"]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
 loader = "LoadstarDataLoader"
 base = 0
 language = "ARM:LE:32:v5"
+subset = ["5.22.152.8.PRG", "3.PRG", "acos_fbd.app"]
 
 [dataset.arm32_coreutils]
 path = "./Datasets/coreutils-arm"
 loader = "ARMCoreutilsDataLoader"
 base = 65536
 language = "ARM:LE:32:v5"
+subset = ["base64"]
 
 [dataset.arm32_coreutils_llvm]
 path = "./Datasets/coreutils-arm-llvm"
@@ -28,12 +30,14 @@ loader = "ARMCoreutilsDataLoader"
 base = 0
 language = "ARM:LE:32:v5"
 llvm_arm32 = true
+subset = ["base64"]
 
 [dataset.mips_coreutils]
 path = "./Datasets/coreutils-mips"
 loader = "MIPSCoreutilsDataLoader"
 base = 4194304
 language = "MIPS:BE:32:default"
+subset = ["base64"]
 
 [dataset.mips_coreutils_llvm]
 path = "./Datasets/coreutils-mips-llvm"
@@ -41,17 +45,19 @@ loader = "MIPSCoreutilsDataLoader"
 base = 0
 language = "MIPS:BE:32:default"
 llvm_arm32 = true
+subset = ["base64"]
 
 [dataset.openssl_x64]
 path = "./Datasets/OpenSSL-x64"
 loader = "OpensslDataLoader"
 base = 0x400000
 language = "x86:LE:64:default"
+subset = ["openssl_O2"]
 
 [dataset.chromium_pe_x64]
 path = "./Datasets/chromium-PE-x64"
 loader = "ChromiumDataLoader"
-base = 0x0
+base = 0x140000000
 language = "x86:LE:64:default"
 
 [evaluator.nsda]
@@ -59,22 +65,26 @@ iteration_limit = 5
 epoches_limit = 500
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
+legacy = true
 
 [evaluator.nsdaworules]
 iteration_limit = 5
 epoches_limit = 500
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
+legacy = true
 
 [evaluator.probnsda]
 iteration_limit = 1
 epoches_limit = 2000
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
+legacy = true
 
 [evaluator.ghidra]
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
+legacy = true
 
 [evaluator.loadstar]
 loadstar_home = "./Datasets/Loadstar"
@@ -88,9 +98,14 @@ lstm_units = 64
 
 [evaluator.ddisasm]
 
-# [evaluator.segmentednsda]
-# iteration_limit = 3
-# epoches_limit = 500
-# keep_ghidra_prj = false
-# keep_ghidra_prj_path = "./saved_ghidra_prjs"
-# function_boundary_path = "./Datasets/chromium-PE-x64/chrome.dll.gt"
+[evaluator.segmentednsda]
+iteration_limit = 5
+epoches_limit = 500
+keep_ghidra_prj_path = "./saved_ghidra_prjs"
+function_level = false
+segment_size = 1_048_576 # 1MB
+
+# skip_training = true
+# project_path = "./saved_ghidra_prjs/20260505_221121_ghidra_project__hcc3mat__segmented_nsda"
+# project_name = "chrome"
+# file_system_name = "/chrome.dll"

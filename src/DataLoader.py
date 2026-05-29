@@ -14,7 +14,8 @@ class Data:
         name: str, 
         binary_path: str,
         code_set: set[int],
-        subset: str | None = None
+        subset: str | None = None,
+        aux: dict | None = None
     ):
         """
         Initialize a Data instance.
@@ -33,6 +34,7 @@ class Data:
         self.binary_path = binary_path
         self.code_set = code_set
         self.subset = subset
+        self.aux = aux or {}
 
 class DataLoader(ABC):
     """
@@ -157,7 +159,7 @@ class ARMCoreutilsDataLoader(DataLoader):
                 code_set = set()
                 for row in reader:
                     if row[3] == "0":
-                        code_set.add(range(int(row[0], 16), int(row[0], 16) + 4))
+                        code_set.update(range(int(row[0], 16), int(row[0], 16) + 4))
             
             data_dict[b.name] = Data(
                 name=b.name,
@@ -200,7 +202,7 @@ class MIPSCoreutilsDataLoader(DataLoader):
                 code_set = set()
                 for row in reader:
                     if row[3] == "0":
-                        code_set.add(range(int(row[0], 16), int(row[0], 16) + 4))
+                        code_set.update(range(int(row[0], 16), int(row[0], 16) + 4))
             
             data_dict[b.name] = Data(
                 name=b.name,
@@ -272,18 +274,21 @@ class ChromiumDataLoader(DataLoader):
         label_file = home / "chrome.dll.gt"
 
         code_set = set()
+        function_boundaries = set()
         with open(label_file, "r") as f:
             for line in f:
                 start, end = line.split() 
                 start_n = int(start, 16)
                 end_n = int(end, 16)
                 code_set.add(start_n)
+                function_boundaries.add((start_n, end_n))
 
         return {
              binary_file.name: Data(
                 name=binary_file.name,
                 binary_path=str(binary_file),
                 code_set=code_set,
-                subset=None
+                subset=None,
+                aux={"function_boundaries": function_boundaries}
             )
         }
