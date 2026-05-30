@@ -1,5 +1,5 @@
 # Use a newer official CUDA runtime image while keeping Ubuntu 22.04
-FROM nvidia/cuda:12.6.3-runtime-ubuntu22.04
+FROM nvidia/cuda:13.1.2-cudnn-devel-ubuntu22.04
 
 # Avoid interactive apt/tzdata prompts during docker build
 ARG DEBIAN_FRONTEND=noninteractive
@@ -38,13 +38,27 @@ RUN apt-get update \
 	&& echo $TZ > /etc/timezone \
 	&& rm -rf /var/lib/apt/lists/*
 
+# Build and install radare2 from the upstream repository
+RUN git clone https://github.com/radareorg/radare2 /opt/radare2 \
+	&& /opt/radare2/sys/install.sh
+
 ENV PYENV_ROOT=/opt/pyenv
 ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
 ENV PYTHON_VERSION=3.12.10
 
 # Install pyenv and pyenv-virtualenv
 RUN git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
-	&& git clone https://github.com/pyenv/pyenv-virtualenv.git "$PYENV_ROOT/plugins/pyenv-virtualenv"
+	&& git clone https://github.com/pyenv/pyenv-virtualenv.git "$PYENV_ROOT/plugins/pyenv-virtualenv" \
+	&& printf '%s\n' \
+		'export PYENV_ROOT=/opt/pyenv' \
+		'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' \
+		'eval "$(pyenv init -)"' \
+		'eval "$(pyenv virtualenv-init -)"' \
+		> /etc/profile.d/pyenv.sh \
+	&& chmod 644 /etc/profile.d/pyenv.sh \
+	&& printf '%s\n' \
+		'if [ -f /etc/profile.d/pyenv.sh ]; then . /etc/profile.d/pyenv.sh; fi' \
+		>> /root/.bashrc
 
 # Set working directory
 WORKDIR /NSDA
@@ -87,31 +101,18 @@ RUN wget -O /tmp/ghidra_12.0.4_PUBLIC_20260303.zip https://github.com/NationalSe
 
 ENV GHIDRA_11_INSTALL_DIR=/opt/ghidra_11.3.2_PUBLIC
 ENV GHIDRA_12_INSTALL_DIR=/opt/ghidra_12.0.4_PUBLIC
-ENV GHIDRA_INSTALL_DIR=$GHIDRA_12_INSTALL_DIR
+ENV GHIDRA_INSTALL_DIR=$GHIDRA_11_INSTALL_DIR
 
-# Copy datasets once, then materialize only the required subset while preserving structure
-COPY Datasets /tmp/Datasets
-RUN set -eux; \
-	printf '%s\n' \
-		'Datasets/chromium-PE-x64/chrome.dll' \
-		'Datasets/chromium-PE-x64/chrome.dll.gt' \
-		'Datasets/coreutils-arm/build-output-armv4/labels' \
-		'Datasets/coreutils-arm/build-output-armv4/stripped' \
-		'Datasets/coreutils-arm-llvm/build-output-armv4/labels' \
-		'Datasets/coreutils-arm-llvm/build-output-armv4/stripped' \
-		'Datasets/coreutils-mips/build-output-mips/labels' \
-		'Datasets/coreutils-mips/build-output-mips/stripped' \
-		'Datasets/coreutils-mips-llvm/build-output-mips/labels' \
-		'Datasets/coreutils-mips-llvm/build-output-mips/stripped' \
-		'Datasets/Loadstar' \
-		'Datasets/OpenSSL-x64/bins' \
-		'Datasets/OpenSSL-x64/labels' \
-		> /tmp/datasets-manifest.txt; \
-	cd /tmp; \
-	tar -cf - -T /tmp/datasets-manifest.txt | tar -xf - -C /NSDA; \
-	rm -f /tmp/datasets-manifest.txt
+# Copy datasets
+COPY Datasets /NSDA/Datasets
+
+# Download Models for Loadstar
+RUN wget -O /NSDA/Datasets/Loadstar/new_weights.weights.h5 https://huggingface.co/benksy/itr_ns1/resolve/main/new_weights.weights.h5?download=true
 
 # Copy source code
 COPY src /NSDA/src
 
-CMD ["bash"]
+# Copy config files
+COPY configs /NSDA/configs
+
+CMD ["bash", "-l"]

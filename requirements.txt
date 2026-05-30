@@ -16,3 +16,4 @@ tensorflow==2.20.0
 toml==0.10.2
 torch==2.7.0
 protobuf==6.33.1
+scikit-learn==1.7.1
