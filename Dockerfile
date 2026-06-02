@@ -12,6 +12,7 @@ RUN apt-get update \
 		ca-certificates \
 		curl \
 		git \
+		software-properties-common \
 		wget \
 		unzip \
 		gcc \
@@ -34,51 +35,34 @@ RUN apt-get update \
 		libncurses5-dev \
 		libreadline-dev \
 		zlib1g-dev \
+	&& add-apt-repository -y ppa:deadsnakes/ppa \
+	&& apt-get update \
+	&& apt-get install -y --no-install-recommends \
+		python3.12 \
+		python3.12-dev \
+		python3.12-venv \
 	&& ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
 	&& echo $TZ > /etc/timezone \
+	&& curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
+	&& python3.12 /tmp/get-pip.py \
+	&& rm -f /tmp/get-pip.py \
+	&& ln -sf /usr/bin/python3.12 /usr/local/bin/python3 \
+	&& ln -sf /usr/bin/python3.12 /usr/local/bin/python \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Build and install radare2 from the upstream repository
 RUN git clone https://github.com/radareorg/radare2 /opt/radare2 \
 	&& /opt/radare2/sys/install.sh
 
-ENV PYENV_ROOT=/opt/pyenv
-ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
-ENV PYTHON_VERSION=3.12.10
-
-# Install pyenv and pyenv-virtualenv
-RUN git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
-	&& git clone https://github.com/pyenv/pyenv-virtualenv.git "$PYENV_ROOT/plugins/pyenv-virtualenv" \
-	&& printf '%s\n' \
-		'export PYENV_ROOT=/opt/pyenv' \
-		'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' \
-		'eval "$(pyenv init -)"' \
-		'eval "$(pyenv virtualenv-init -)"' \
-		> /etc/profile.d/pyenv.sh \
-	&& chmod 644 /etc/profile.d/pyenv.sh \
-	&& printf '%s\n' \
-		'if [ -f /etc/profile.d/pyenv.sh ]; then . /etc/profile.d/pyenv.sh; fi' \
-		>> /root/.bashrc
-
 # Set working directory
 WORKDIR /NSDA
 
 # Copy requirement files into /tmp as requested
-COPY requirements.txt /tmp/requirements.txt
-COPY requirements-legacy.txt /tmp/requirements-legacy.txt
+COPY requirements-legacy.txt /tmp/requirements.txt
 
-# Create two Python 3.12 pyenv virtual environments and install dependencies
-RUN bash -lc ' \
-	eval "$(pyenv init -)" && \
-	eval "$(pyenv virtualenv-init -)" && \
-	pyenv install -s "$PYTHON_VERSION" && \
-	pyenv virtualenv -f "$PYTHON_VERSION" nsda && \
-	pyenv virtualenv -f "$PYTHON_VERSION" nsda-legacy && \
-	PYENV_VERSION=nsda pyenv exec python -m pip install --upgrade pip setuptools wheel && \
-	PYENV_VERSION=nsda pyenv exec pip install --no-cache-dir -r /tmp/requirements.txt && \
-	PYENV_VERSION=nsda-legacy pyenv exec python -m pip install --upgrade pip setuptools wheel && \
-	PYENV_VERSION=nsda-legacy pyenv exec pip install --no-cache-dir -r /tmp/requirements-legacy.txt \
-'
+# Install Python dependencies immediately after copying requirements
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+	&& python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Download and extract OpenJDK 21
 RUN wget -O /tmp/jdk-21.0.7_linux-x64_bin.tar.gz https://download.oracle.com/java/21/archive/jdk-21.0.7_linux-x64_bin.tar.gz \
@@ -99,9 +83,7 @@ RUN wget -O /tmp/ghidra_12.0.4_PUBLIC_20260303.zip https://github.com/NationalSe
 	&& unzip /tmp/ghidra_12.0.4_PUBLIC_20260303.zip -d /opt \
 	&& rm /tmp/ghidra_12.0.4_PUBLIC_20260303.zip
 
-ENV GHIDRA_11_INSTALL_DIR=/opt/ghidra_11.3.2_PUBLIC
-ENV GHIDRA_12_INSTALL_DIR=/opt/ghidra_12.0.4_PUBLIC
-ENV GHIDRA_INSTALL_DIR=$GHIDRA_11_INSTALL_DIR
+ENV GHIDRA_INSTALL_DIR=/opt/ghidra_11.3.2_PUBLIC
 
 # Copy datasets
 COPY Datasets /NSDA/Datasets
@@ -115,4 +97,9 @@ COPY src /NSDA/src
 # Copy config files
 COPY configs /NSDA/configs
 
-CMD ["bash", "-l"]
+# Copy entrypoint
+COPY entrypoint.py /NSDA/entrypoint.py
+
+ENTRYPOINT ["python3", "entrypoint.py"]
+
+CMD ["--help"]

@@ -1,10 +1,10 @@
 [config]
 ghidra_home = "/opt/ghidra_11.3.2_PUBLIC"
-eval_type = "Subset Evaluation"
+eval_type = "Dataset Evaluation"
 dump_json = true
 dump_error_list = false
 result_path = "./eval_results"
-log_file = "./logs/nsda_demo.log"
+log_file = "./logs/all.log"
 log_level = "info"
 
 datasets = ["loadstar", "arm32_coreutils", "arm32_coreutils_llvm", "mips_coreutils", "mips_coreutils_llvm", "openssl_x64"]

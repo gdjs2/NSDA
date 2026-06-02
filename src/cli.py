@@ -290,13 +290,17 @@ def maybe_save_config_before_evaluation(config):
 def dump_result(
     results: dict[str, dict[str, dict[str, tuple[float, float, float, float, float, list[int], list[int]]]]],
     result_path: str,
+    result_file_str: str | None = None,
     dump_error_list: bool = False
-):
+) -> str | None:
     import json
     root = Path(result_path)
     root.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    result_file = root / f"{timestamp}.json"
+    if result_file_str is None:
+        result_file = root / f"{timestamp}.json"
+    else:
+        result_file = root / result_file_str
     processed_result = {}
 
     for dataset_name, r in results.items():
@@ -434,7 +438,7 @@ def _eval_datasets(
         )
     return results
 
-def start_evaluation(config):
+def start_evaluation(config, result_file_str: str | None = None):
     """Starts the evaluation process."""
     with console.status("[bold cyan]Starting Evaluation...[/bold cyan]") as status:
         status.update("[bold cyan]Starting PyGhidra...[/bold cyan]")
@@ -473,6 +477,7 @@ def start_evaluation(config):
         dump_result(
             results, 
             config["config"].get("result_path", "./"),
+            result_file_str,
             dump_error_list=config["config"].get("dump_error_list", False)
         )
         
@@ -484,6 +489,12 @@ def parse_args():
         "--config",
         type=str,
         help="Path to a TOML config file. When provided, evaluation runs directly without interactive prompts."
+    )
+    parser.add_argument(
+        "-r",
+        "--result-file",
+        type=str,
+        help="Optional custom filename for the dumped results JSON (only used if dump_json is true in the config). If not provided, defaults to a timestamp-based name."
     )
     return parser.parse_args()
 
@@ -502,7 +513,7 @@ def main():
             log_file=config["config"]["log_file"],
             log_level=config["config"]["log_level"]
         )
-        start_evaluation(config)
+        start_evaluation(config, result_file_str=args.result_file)
         return
 
     console.print("[bold cyan]Starting Configuration Wizard...[/bold cyan]")
@@ -536,7 +547,7 @@ def main():
         log_file=config["config"]["log_file"], 
         log_level=config["config"]["log_level"]
     )
-    start_evaluation(config)
+    start_evaluation(config, result_file_str=args.result_file)
 
 if __name__ == "__main__":
     main()

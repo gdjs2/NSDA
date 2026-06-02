@@ -440,9 +440,10 @@ class LoadstarEvaluator(Evaluator):
     def __init__(self):
         import os
         import warnings
-        import tensorflow as tf
 
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
+        import tensorflow as tf
         tf.get_logger().setLevel('ERROR')
         warnings.filterwarnings('ignore')
 
