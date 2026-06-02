@@ -3,10 +3,10 @@
 	url = https://github.com/Benksy/Loadstar.git
 [submodule "Datasets/OpenSSL-x64"]
 	path = Datasets/OpenSSL-x64
-	url = git@github.com:gdjs2/OpenSSL-x64.git
+	url = https://github.com/gdjs2/OpenSSL-x64.git
 [submodule "Datasets/chromium-PE-x64"]
 	path = Datasets/chromium-PE-x64
-	url = git@github.com:gdjs2/chromium-PE-x64.git
+	url = https://github.com/gdjs2/chromium-PE-x64.git
 [submodule "Datasets/coreutils"]
 	path = Datasets/coreutils
-	url = git@github.com:gdjs2/NSDA-coreutils-dataset.git
+	url = https://github.com/gdjs2/NSDA-coreutils-dataset.git
