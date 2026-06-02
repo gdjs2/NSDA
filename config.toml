@@ -99,6 +99,6 @@ keep_ghidra_prj_path = "./saved_ghidra_prjs"
 function_level = true
 segment_size = 1048576
 skip_training = true
-project_path = "/home/zhaoqi.xiao/Projects/NSDA/saved_ghidra_prjs/20260505_221121_ghidra_project__hcc3mat__segmented_nsda"
+project_path = "./saved_ghidra_prjs/20260505_221121_ghidra_project__hcc3mat__segmented_nsda"
 project_name = "chrome"
 file_system_name = "/chrome.dll"

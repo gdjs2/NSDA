@@ -1,5 +1,5 @@
 # Use a newer official CUDA runtime image while keeping Ubuntu 22.04
-FROM nvidia/cuda:13.1.2-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:13.1.2-devel-ubuntu22.04
 
 # Avoid interactive apt/tzdata prompts during docker build
 ARG DEBIAN_FRONTEND=noninteractive
@@ -35,6 +35,7 @@ RUN apt-get update \
 		libncurses5-dev \
 		libreadline-dev \
 		zlib1g-dev \
+		cuda-compat-13-1 \
 	&& add-apt-repository -y ppa:deadsnakes/ppa \
 	&& apt-get update \
 	&& apt-get install -y --no-install-recommends \
