@@ -23,6 +23,7 @@ For native execution, the use of a Python virtual environment is recommended. Th
 
 | Dependency  | Version         |
 | :---------- | :-------------- |
+| **Ubuntu**  | 22.04           |
 | **Python**  | 3.12            |
 | **Ghidra**  | 11.3.2 (required) & 12.0.4 (optinal for Ghidra 12 experiment and *Segmented NSDA*)|
 | **OpenJDK** | 21.0.7          |
@@ -62,7 +63,7 @@ Create directories for evaluation outputs and logs:
 mkdir eval_results logs
 ```
 
-Run the demo experiment:
+Run the demo experiment [EST: 60 human minutes]:
 
 ```bash
 docker run -v $(pwd)/eval_results:/NSDA/eval_results \
@@ -80,9 +81,17 @@ docker run -v $(pwd)/eval_results:/NSDA/eval_results \
 
 A summary table similar to the one below should be displayed and an pdf efficiency plot figure should be created at `./eval_results`:
 
-```text
-[TODO TABLE]
-```
+| Dataset | GHIDRA Prec | GHIDRA Recall | GHIDRA F1 | DDISASM Prec | DDISASM Recall | DDISASM F1 | LOADSTAR Prec | LOADSTAR Recall | LOADSTAR F1 | NSDA Prec | NSDA Recall | NSDA F1 |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Coreutils - ARM32 | 0.9989 | 0.9615 | 0.9799 | 0.9995 | 0.9908 | 0.9951 | 0.9990 | 0.8920 | 0.9424 | 0.9958 | 0.9992 | 0.9975 |
+| Coreutils - MIPS | 1.0000 | 0.8523 | 0.9202 | 1.0000 | 0.9966 | 0.9983 | — | — | — | 1.0000 | 0.9798 | 0.9898 |
+| Coreutils - ARM32 - LLVM | 0.9878 | 0.8066 | 0.8880 | 0.9909 | 0.9980 | 0.9944 | 1.0000 | 0.8781 | 0.9351 | 0.9872 | 0.9989 | 0.9930 |
+| Coreutils - MIPS - LLVM | 1.0000 | 0.5842 | 0.7375 | 1.0000 | 0.9965 | 0.9982 | — | — | — | 1.0000 | 0.9651 | 0.9823 |
+| OpenSSL - x64 | 0.9865 | 0.8823 | 0.9315 | 0.9563 | 0.9995 | 0.9774 | — | — | — | 0.9402 | 0.9968 | 0.9677 |
+| PLC - NS1 | 0.9953 | 0.9913 | 0.9933 | — | — | — | 0.9981 | 0.9984 | 0.9982 | 0.9932 | 0.9913 | 0.9922 |
+| PLC - NS2 | 0.9799 | 0.9832 | 0.9815 | — | — | — | 1.0000 | 0.9882 | 0.9941 | 0.9718 | 0.9832 | 0.9774 |
+| PLC - NS3 | 0.9865 | 0.5858 | 0.7351 | — | — | — | 0.9994 | 0.9379 | 0.9676 | 0.9306 | 0.9576 | 0.9439 |
+
 
 After confirming that the demo experiment completes successfully, start the full evaluation:
 
@@ -169,7 +178,7 @@ pip install -r ./requirements.txt.12
 
 Several preconfigured experiment configurations are provided in the `./configs` directory. Most configurations are intended to be executed in the legacy environment.
 
-* `demo.toml` (legacy API): Demo experiment used to verify the environment. [Time: TODO]
+* `demo.toml` (legacy API): Demo experiment used to verify the environment. [EST: 60 Human Minutes]
 * `main.toml` (legacy API): Reproduces all experiments reported in Table 4 and Figure 2. [Time: TODO]
 * Sub-experiments of `main.toml` (legacy API):
 
