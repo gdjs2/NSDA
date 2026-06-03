@@ -6,7 +6,7 @@ from collections import defaultdict
 # ------------------------------
 # Load Data
 # ------------------------------
-JSON_FILE = "/home/zhaoqi.xiao/Projects/NSDA/eval_results/20251213_182238.json"
+JSON_FILE = "./eval_results/20251213_182238.json"
 
 with open(JSON_FILE, "r") as f:
     data = json.load(f)
