@@ -63,7 +63,7 @@ Create directories for evaluation outputs and logs:
 mkdir eval_results logs
 ```
 
-Run the demo experiment [EST: 60 human minutes]:
+Run the demo experiment [EST: 1 cumpute-hour]:
 
 ```bash
 docker run -v $(pwd)/eval_results:/NSDA/eval_results \
