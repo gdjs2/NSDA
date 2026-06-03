@@ -8,7 +8,7 @@ log_file = "./logs/chromium_pe_x64.log"
 log_level = "info"
 
 datasets = ["chromium_pe_x64"]
-evaluator = ["segmentednsda"]
+evaluator = ["ghidra", "segmentednsda"]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
@@ -83,7 +83,7 @@ legacy = true
 [evaluator.ghidra]
 keep_ghidra_prj = false
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
-legacy = true
+legacy = false
 
 [evaluator.loadstar]
 loadstar_home = "./Datasets/Loadstar"

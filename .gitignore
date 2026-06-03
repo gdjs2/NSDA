@@ -216,5 +216,5 @@ fixed_gt/
 eval_results/
 
 nsda_env/*
-*.png
+./*.png
 saved_ghidra_prjs/
