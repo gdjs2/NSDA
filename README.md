@@ -29,7 +29,7 @@ For native execution, the use of a Python virtual environment is recommended. Th
 | **OpenJDK** | 21.0.7          |
 | **Radare2** | 6.0.7           |
 
-Additional Python dependencies are specified in `requirements-legacy.txt` and `requirements.txt`.
+Additional Python dependencies are specified in `requirements.txt` and `requirements.txt.12`.
 
 ## Quick Start
 
