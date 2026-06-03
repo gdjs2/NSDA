@@ -1,158 +1,253 @@
-# NSDA - AE Package
+# NSDA Artifact Evaluation Package
 
-*NSDA AE Package* is for the artifact evaluation of paper *Neurosymbolic Disassembly*. This package contains necessary source code, configuration files and datasets to reproduce the results in the evaluation. 
+*NSDA Artifact Evaluation Package* accompanies the paper *Neurosymbolic Disassembly*. It contains the source code, configuration files, and datasets required to reproduce the evaluation results presented in the paper.
 
 ## Hardware Requirements
 
-This experiment can be only finished on x86_64 architecture. Common commercial PC or server is satisfactory. A GPU is preferred while not required. Any GPU with the memory higher than 8 GB is good. 
+The artifact requires a machine equipped with a CUDA-compatible GPU. The minimum hardware requirements are listed below.
+
+| Component        | Minimum Requirement             |
+| :--------------- | :------------------------------ |
+| **CPU**          | 4-core x86_64 processor         |
+| **Memory (RAM)** | 64 GB                           |
+| **GPU**          | 1× NVIDIA GPU (CUDA-compatible) |
+| **GPU VRAM**     | 8 GB                            |
+| **Storage**      | 20 GB available disk space      |
+| **Network**      | Internet access required        |
 
 ## Software Requirements
 
-Any Linux distribution with support of Docker deamon if you want to evaluate in docker container. 
+For Docker-based execution, a Docker daemon with `nvidia-container-toolkit` installed is required. The provided Docker image is based on CUDA 12.8. Therefore, the host system must provide CUDA 12.8 or newer.
 
-Our local environments are:
+For native execution, the use of a Python virtual environment is recommended. The software versions used in our local environment are listed below:
 
-* Ubuntu 22.04.5 LTS
-* Python 3.12.2
-* Ghidra 11.3.2 (Legacy API) & Ghidra 12.0.4
+| Dependency  | Version         |
+| :---------- | :-------------- |
+| **Python**  | 3.12            |
+| **Ghidra**  | 11.3.2 (required) & 12.0.4 (optinal for Ghidra 12 experiment and *Segmented NSDA*)|
+| **OpenJDK** | 21.0.7          |
+| **Radare2** | 6.0.7           |
 
-## TL; DR
+Additional Python dependencies are specified in `requirements-legacy.txt` and `requirements.txt`.
 
-*This section is for the ones plan to use Docker environment.*
+## Quick Start
 
-A general usage computer with 2-cores CPU, 64 GB or larger memory, 20 GB free disk. A GPU with 8 GB or larger memory is required. A docker deamon is required. 
+*For users evaluating the artifact via Docker.*
 
-1. Build the docker image:
+The full evaluation may require **3–7 days** to complete, depending on the available hardware. Running the experiment inside a persistent terminal session (for example, `screen` or `tmux`) is therefore recommended.
+
+Clone the repository and initialize all submodules. Git LFS is required because the Chromium dataset is provided through a submodule containing LFS-managed files.
+
 ```bash
-$ 
+# Install Git LFS if it is not already available
+git lfs install
+
+# Clone the repository
+git clone https://github.com/gdjs2/NSDA.git
+cd NSDA
+
+# Initialize and update all submodules
+git submodule update --init --recursive
+```
+
+Build the Docker image:
+
+```bash
+docker build -t nsda-ae .
+```
+
+Create directories for evaluation outputs and logs:
+
+```bash
+mkdir eval_results logs
+```
+
+Run the demo experiment:
+
+```bash
+docker run -v $(pwd)/eval_results:/NSDA/eval_results \
+           -v $(pwd)/logs:/NSDA/logs \
+           --gpus all --rm -it nsda-ae exp 0
+```
+
+Display the demo results:
+
+```bash
+docker run -v $(pwd)/eval_results:/NSDA/eval_results \
+           --gpus all --rm -it nsda-ae \
+           show 0 ./eval_results/exp_0_results.json
+```
+
+A summary table similar to the one below should be displayed and an pdf efficiency plot figure should be created at `./eval_results`:
+
+```text
+[TODO TABLE]
+```
+
+After confirming that the demo experiment completes successfully, start the full evaluation:
+
+```bash
+docker run -v $(pwd)/eval_results:/NSDA/eval_results \
+           -v $(pwd)/logs:/NSDA/logs \
+           --gpus all --rm -it nsda-ae exp 1
+```
+
+Display the evaluation results:
+
+```bash
+docker run -v $(pwd)/eval_results:/NSDA/eval_results \
+           --gpus all --rm -it nsda-ae \
+           show 1 ./eval_results/exp_1_results.json
 ```
 
 ## Environment Description
 
-We provide two different environments for running the experiment:
-1. Ghidra 11.3.2 w/ old pyghidra API described in `requirements-legacy.txt`. This provides the legacy API of pyghidra and will be deprecated in the future. However, as Ghidra 11.3.2 only supports legacy APIs, which is our initial experiment environment for *NSDA*, we use this as default. 
-2. Ghidra 12.0.4 w/ new pyghidra API described in `requirements.txt`. These new APIs provide more flexible ways to process binaries with Ghidra. 
+The artifact supports two execution environments:
 
-## How to run it
+1. **Ghidra 11.3.2** with the legacy PyGhidra API, described in `requirements.txt`. This environment provides the legacy PyGhidra API and may be deprecated in future releases. Because Ghidra 11.3.2 only supports the legacy API, and this was the original experimental environment used for *NSDA*, it is provided as the default configuration.
 
-We provide two ways to run the artifact: (1) Docker (2) Native Python Virtual Environment. We suggest using the method (1), while we also provide concrete steps to run on your local host machine. 
+2. **Ghidra 12.0.4** with the newer PyGhidra API, described in `requirements.txt.12`. These APIs provide a more flexible interface for binary analysis with Ghidra.
+
+## How to Run the Artifact
+
+The artifact can be executed in two ways:
+
+1. Docker (recommended)
+2. Native Python virtual environment
+
+Detailed instructions for both approaches are provided below.
 
 ### Docker
 
-There are two versions of Dockerfile, which are identical except for the Ghidra version and python dependecies of pyghidra as decribed in [environment description](#environment-description). 
+Two Dockerfiles are provided. They differ only in the Ghidra version and PyGhidra dependencies described in the [Environment Description](#environment-description).
 
-1. Default `Dockerfile`: Ghidra 11.3.2 w/ old pyghidra API installed by `requirements-legacy.txt`. 
-2. Optional `Dockerfile-12`: Ghidra 12.0.4 w/ new pyghidra API installed by `requirements.txt`. 
+1. `Dockerfile` (default): Ghidra 11.3.2 with the legacy PyGhidra API installed from `requirements.txt`.
+2. `Dockerfile.12` (optional): Ghidra 12.0.4 with the newer PyGhidra API installed from `requirements.txt.12`.
 
-To build the docker image for Ghidra 11 w/ legacy API:
-
-```bash
-docker build 
-```
-
-for Ghidra 12 w/ new API:
+To build the Docker image for Ghidra 11 with the legacy API:
 
 ```bash
-docker build
+docker build -t nsda-ae .
 ```
 
-Afterwards, this docker image can be used for running the experiments. To notice, we use two directory in the container to store important information of the experiment. We suggest mounting them as external directory so that you can re-access them after the docker container is terminated. 
+To build the Docker image for Ghidra 12 with the newer API:
 
-* `/NSDA/logs`: Storing the logs of the experiments. Mount this if you want to check the log or progress. 
-* `/NSDA/eval_results`: Storing the evaluation results. **Mount this** if you want to keep the evaluation results after the experiments or visualizing the results. 
+```bash
+docker build -f Dockerfile.12 -t nsda-ae:12 .
+```
+
+The resulting Docker image can then be used to run the experiments.
+
+The following directories inside the container store experiment artifacts and should be mounted to the host when persistence is desired:
+
+* `/NSDA/logs` — Stores experiment logs. Mount this directory if you want to monitor progress or inspect logs.
+* `/NSDA/eval_results` — Stores evaluation results. **Mount this directory** if you want to preserve results after the container terminates or visualize them later.
 
 ### Local Environment
 
-We suggest to use a python virtual environment (e.g., condo) for installing the requirements of *NSDA* and running the experiment. 
+Using a Python virtual environment (for example, Conda) is recommended for installing dependencies and running the artifact natively. If you plan to run experiments of *NSDA w/ Ghidra 12* or *Segmented NSDA*, you should install the newer API environment, otherwise legacy API. 
 
-You need to [install Ghidra and corresponding dependencies (e.g., JRE or JDK) first](https://github.com/nationalsecurityagency/ghidra#install). 
+You must first install Ghidra and its corresponding dependencies (for example, a JRE or JDK):
 
-Install requirements for NSDA, for legacy APIs (Ghidra version < 12):
-```bash
-pip install -r ./requirements-legacy.txt
-```
+https://github.com/nationalsecurityagency/ghidra#install
 
-for new APIs (Ghidra version >= 12):
+Install the dependencies for the legacy API environment (Ghidra < 12) for main experiments:
+
 ```bash
 pip install -r ./requirements.txt
 ```
 
-### Run Experiments
+Install the dependencies for the newer API environment (Ghidra ≥ 12) for :
 
-#### Pre-Configurations
+```bash
+pip install -r ./requirements.txt.12
+```
 
-We prepared some pre-configured experiments in the directory `./configs`. Most of them should be finished in the legacy environment. 
+## Running Experiments
 
-* `demo.toml` (legacy API): A demo to test the environment. [Time: TODO]
-* `main.toml` (legacy API): All experiments shown in Table 4 and Figure 2. This is the predominant experiment. [time: TODO]
-* Sub-experiments of `main.toml` (legacy API): 
-   1. `coreutils-arm32-gcc.toml`
-   2. `coreutils-arm32-llvm.toml`
-   3. `coreutils-mips-gcc.toml`
-   4. `coreutils-mips-llvm.toml`
-   5. `loadstar-plc.toml`
-   6. `openssl-x64.toml`
-* `chromium-pe-x64.toml` (new API): The experiment of *Segmented NSDA* on Chromium. 
+### Preconfigured Experiment Configurations
 
-#### Entrypoint
+Several preconfigured experiment configurations are provided in the `./configs` directory. Most configurations are intended to be executed in the legacy environment.
 
-For easy-start an core experiments and show the results, we prepare an `entrypoint.py` script for starting pre-configured experiments. The supported experiments are listed below:
+* `demo.toml` (legacy API): Demo experiment used to verify the environment. [Time: TODO]
+* `main.toml` (legacy API): Reproduces all experiments reported in Table 4 and Figure 2. [Time: TODO]
+* Sub-experiments of `main.toml` (legacy API):
+
+  1. `coreutils-arm32-gcc.toml`
+  2. `coreutils-arm32-llvm.toml`
+  3. `coreutils-mips-gcc.toml`
+  4. `coreutils-mips-llvm.toml`
+  5. `loadstar-plc.toml`
+  6. `openssl-x64.toml`
+* `main-12.toml` (new API): Reproduces experiments reported in Appendix B. [Time: TODO]
+* `chromium-pe-x64.toml` (new API): Reproduces the *Segmented NSDA* experiment on Chromium. [Time: TODO]
+
+### Entrypoint
+
+To simplify execution of the predefined experiments and visualization of results, the artifact provides an `entrypoint.py` script.
+
+The following experiment identifiers are supported:
 
 0. `demo.toml`
 1. `main.toml`
 2. `main-12.toml`
-3. `chrmium-pe-x64.toml`
+3. `chromium-pe-x64.toml`
 
-where the index number is the experiment number `{exp_id}`. 
+The index corresponds to the experiment identifier `{exp_id}`.
 
-##### Running Experiments
+#### Running Experiments
 
-You can run specified experiments using command below:
+Run a specific experiment using:
 
 ```bash
 python3 entrypoint.py exp {exp_id}
 ```
 
-For example, for running `demo.toml`:
+For example, to run `demo.toml`:
 
 ```bash
 python3 entrypoint.py exp 0
 ```
 
-If you are using docker, this `entrypoint.sh` script is used as default entrypoint of the docker image, you can simply attach similar arguments to the docker run command:
+When using Docker, `entrypoint.py` is configured as the container entrypoint. Equivalent arguments can therefore be passed directly to `docker run`:
 
 ```bash
-docker run --rm --gpus all -v ${HOST_RESULTS_DIR}:/NSDA/eval_results nsda-ae exp {exp_id}
+docker run -v $(pwd)/eval_results:/NSDA/eval_results \
+           -v $(pwd)/logs:/NSDA/logs \
+           --gpus all --rm -it nsda-ae exp 0
 ```
 
-##### Visualize Results
+#### Visualizing Results
 
-After the experiment finishes, a result file will be created under `./eval_results`. You can use the entrypoint to visualize the results as well:
+After an experiment completes, a result file will be generated in `./eval_results`.
+
+The same entrypoint can be used to visualize the results:
 
 ```bash
-python3 entrypoint.sh show {exp_id} ./eval_results/exp_{exp_id}_results.json
+python3 entrypoint.py show {exp_id} ./eval_results/exp_{exp_id}_results.json
 ```
 
-For example, result file `./eval_results/exp_0_results.json` will be created after you finish the experiment 0. You can check the result using:
+For example, after experiment 0 completes, the result file `./eval_results/exp_0_results.json` can be displayed using:
 
 ```bash
-python3 entrypoint.sh show 0 ./eval_results/exp_0_results.json
+python3 entrypoint.py show 0 ./eval_results/exp_0_results.json
 ```
 
-Similar usage for docker container. However, you should mount local directory to `/NSDA/eval_results` to persistent the result file. 
+The same workflow applies when using Docker. Mount a local directory to `/NSDA/eval_results` so that the generated result file persists after the container terminates.
 
 ```bash
-$ docker run --rm --gpus all -v /tmp/nsda_results:/NSDA/eval_results nsda-ae exp 0
-$ docker run --rm --gpus all -v /tmp/nsda_results:/NSDA/eval_results nsda-ae show 0 ./eval_results/exp_0_results.json
+docker run -v $(pwd)/eval_results:/NSDA/eval_results \
+           --gpus all --rm -it nsda-ae \
+           show 0 ./eval_results/exp_0_results.json
 ```
 
 ## Questions
 
-Issues are welcome if you find questions in using this package. 
+If you encounter issues or have questions about using the artifact, please open an issue in the repository.
 
 ## Citation
 
-Please cite our paper if found this useful:
+Please cite our paper if you find this artifact useful:
 
 ```bibtex
 @inproceedings{xiao2026neurosymbolic,

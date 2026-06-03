@@ -58,7 +58,7 @@ RUN git clone https://github.com/radareorg/radare2 /opt/radare2 \
 WORKDIR /NSDA
 
 # Copy requirement files into /tmp as requested
-COPY requirements.txt /tmp/requirements.txt
+COPY requirements.txt.12 /tmp/requirements.txt
 
 # Install Python dependencies immediately after copying requirements
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
@@ -73,12 +73,12 @@ RUN wget -O /tmp/jdk-21.0.7_linux-x64_bin.tar.gz https://download.oracle.com/jav
 ENV JAVA_HOME=/opt/jdk-21
 ENV PATH="$JAVA_HOME/bin:$PATH"
 
-# Download and extract Ghidra 11.3.2
-RUN wget -O /tmp/ghidra_11.3.2_PUBLIC_20250415.zip https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.3.2_build/ghidra_11.3.2_PUBLIC_20250415.zip \
-	&& unzip /tmp/ghidra_11.3.2_PUBLIC_20250415.zip -d /opt \
-	&& rm /tmp/ghidra_11.3.2_PUBLIC_20250415.zip
+# Download and extract Ghidra 12.0.4
+RUN wget -O /tmp/ghidra_12.0.4_PUBLIC_20260303.zip https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.0.4_build/ghidra_12.0.4_PUBLIC_20260303.zip \
+	&& unzip /tmp/ghidra_12.0.4_PUBLIC_20260303.zip -d /opt \
+	&& rm /tmp/ghidra_12.0.4_PUBLIC_20260303.zip
 
-ENV GHIDRA_INSTALL_DIR=/opt/ghidra_11.3.2_PUBLIC
+ENV GHIDRA_INSTALL_DIR=/opt/ghidra_12.0.4_PUBLIC
 
 # Copy datasets
 COPY Datasets /NSDA/Datasets
