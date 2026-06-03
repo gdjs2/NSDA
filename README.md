@@ -79,18 +79,13 @@ docker run -v $(pwd)/eval_results:/NSDA/eval_results \
            show 0 ./eval_results/exp_0_results.json
 ```
 
-A summary table similar to the one below should be displayed and an pdf efficiency plot figure should be created at `./eval_results`:
+A summary table similar to the one below should be displayed:
 
-| Dataset | GHIDRA Prec | GHIDRA Recall | GHIDRA F1 | DDISASM Prec | DDISASM Recall | DDISASM F1 | LOADSTAR Prec | LOADSTAR Recall | LOADSTAR F1 | NSDA Prec | NSDA Recall | NSDA F1 |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Coreutils - ARM32 | 0.9989 | 0.9615 | 0.9799 | 0.9995 | 0.9908 | 0.9951 | 0.9990 | 0.8920 | 0.9424 | 0.9958 | 0.9992 | 0.9975 |
-| Coreutils - MIPS | 1.0000 | 0.8523 | 0.9202 | 1.0000 | 0.9966 | 0.9983 | — | — | — | 1.0000 | 0.9798 | 0.9898 |
-| Coreutils - ARM32 - LLVM | 0.9878 | 0.8066 | 0.8880 | 0.9909 | 0.9980 | 0.9944 | 1.0000 | 0.8781 | 0.9351 | 0.9872 | 0.9989 | 0.9930 |
-| Coreutils - MIPS - LLVM | 1.0000 | 0.5842 | 0.7375 | 1.0000 | 0.9965 | 0.9982 | — | — | — | 1.0000 | 0.9651 | 0.9823 |
-| OpenSSL - x64 | 0.9865 | 0.8823 | 0.9315 | 0.9563 | 0.9995 | 0.9774 | — | — | — | 0.9402 | 0.9968 | 0.9677 |
-| PLC - NS1 | 0.9953 | 0.9913 | 0.9933 | — | — | — | 0.9981 | 0.9984 | 0.9982 | 0.9932 | 0.9913 | 0.9922 |
-| PLC - NS2 | 0.9799 | 0.9832 | 0.9815 | — | — | — | 1.0000 | 0.9882 | 0.9941 | 0.9718 | 0.9832 | 0.9774 |
-| PLC - NS3 | 0.9865 | 0.5858 | 0.7351 | — | — | — | 0.9994 | 0.9379 | 0.9676 | 0.9306 | 0.9576 | 0.9439 |
+![F1 Table for Demo](./imgs/demo-f1.png)
+
+and an pdf efficiency plot figure should be created at `./eval_results`:
+
+![Efficiency Plot for Demo](./imgs/exp_0_efficiency_plot.png)
 
 
 After confirming that the demo experiment completes successfully, start the full evaluation:
