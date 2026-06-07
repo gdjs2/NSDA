@@ -78,7 +78,7 @@ def save_ghidra_cache(source_path: str, saved_path: str, suffix: str | None = No
             des_path.parent.mkdir(parents=True)
         shutil.move(path, des_path)
         logger.info(f"Save ghidra cache folder {path.name} to {des_path}")
-    return des_path
+    return des_path.absolute()
 
 def iterative_training(
     binary_path: str, 
@@ -373,7 +373,7 @@ def segmented_iterative_training(
 
     return (
         save_ghidra_cache(ghidra_project_path, keep_ghidra_prj_path, "segmented_nsda"),
-        f"/{Path(binary_path).name}",
+        f"{binary_name}",
         f"/{Path(binary_path).name}",
         total_preprocess_time,
         total_training_time,
