@@ -88,7 +88,7 @@ and an pdf efficiency plot figure should be created at `./eval_results`:
 ![Efficiency Plot for Demo](./imgs/exp_0_efficiency_plot.png)
 
 
-After confirming that the demo experiment completes successfully, start the full evaluation:
+After confirming that the demo experiment completes successfully, start the full evaluation: [EST: 30 compute-hours]
 
 ```bash
 docker run -v $(pwd)/eval_results:/NSDA/eval_results \
@@ -173,8 +173,8 @@ pip install -r ./requirements.txt.12
 
 Several preconfigured experiment configurations are provided in the `./configs` directory. Most configurations are intended to be executed in the legacy environment.
 
-* `demo.toml` (legacy API): Demo experiment used to verify the environment. [EST: 60 Human Minutes]
-* `main.toml` (legacy API): Reproduces all experiments reported in Table 4 and Figure 2. [Time: TODO]
+* `demo.toml` (legacy API): Demo experiment used to verify the environment. [EST: 1 compute-hour]
+* `main.toml` (legacy API): Reproduces all experiments reported in Table 4 and Figure 2. [Time: 30 compute-hours]
 * Sub-experiments of `main.toml` (legacy API):
 
   1. `coreutils-arm32-gcc.toml`
@@ -183,7 +183,7 @@ Several preconfigured experiment configurations are provided in the `./configs` 
   4. `coreutils-mips-llvm.toml`
   5. `loadstar-plc.toml`
   6. `openssl-x64.toml`
-* `main-12.toml` (new API): Reproduces experiments reported in Appendix B. [Time: TODO]
+* `main-12.toml` (new API): Reproduces experiments reported in Appendix B. [Time: 60 compute-hours]
 * `chromium-pe-x64.toml` (new API): Reproduces the *Segmented NSDA* experiment on Chromium. [Time: TODO]
 
 ### Entrypoint
