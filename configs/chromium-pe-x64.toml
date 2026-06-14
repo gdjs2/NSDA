@@ -8,7 +8,8 @@ log_file = "./logs/chromium_pe_x64.log"
 log_level = "info"
 
 datasets = ["chromium_pe_x64"]
-evaluator = ["ghidra", "segmentednsda"]
+evaluator = ["ghidrafunctionlevel", "segmentednsda"]
+# evaluator = ["ghidrafunctionlevel"]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
@@ -103,6 +104,11 @@ epoches_limit = 500
 keep_ghidra_prj_path = "./saved_ghidra_prjs"
 function_level = true
 segment_size = 1_048_576 # 1MB
+
+[evaluator.ghidrafunctionlevel]
+keep_ghidra_prj = false
+keep_ghidra_prj_path = "./saved_ghidra_prjs"
+legacy = false
 
 # skip_training = true
 # project_path = "./saved_ghidra_prjs/20260505_221121_ghidra_project__hcc3mat__segmented_nsda"

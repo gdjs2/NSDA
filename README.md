@@ -184,7 +184,7 @@ Several preconfigured experiment configurations are provided in the `./configs` 
   5. `loadstar-plc.toml`
   6. `openssl-x64.toml`
 * `main-12.toml` (new API): Reproduces experiments reported in Appendix B. [Time: 60 compute-hours]
-* `chromium-pe-x64.toml` (new API): Reproduces the *Segmented NSDA* experiment on Chromium. [Time: TODO]
+* `chromium-pe-x64.toml` (new API): Reproduces the *Segmented NSDA* experiment on Chromium. [Time: 200 compute-hours]
 
 ### Entrypoint
 
