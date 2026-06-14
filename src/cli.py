@@ -38,7 +38,7 @@ VALID_DATASET_EVALUATOR = {
 
     ("openssl_x64", "nsda"), ("openssl_x64", "ghidra"), ("openssl_x64", "nsdaworules"), ("openssl_x64", "probnsda"), ("openssl_x64", "ddisasm"), ("openssl_x64", "segmentednsda"),
 
-    ("chromium_pe_x64", "ghidra"), ("chromium_pe_x64", "segmentednsda")
+    ("chromium_pe_x64", "ghidrafunctionlevel"), ("chromium_pe_x64", "segmentednsda")
 
 }
 
@@ -49,7 +49,8 @@ EVALUATOR_NAME_MAP = {
     "probnsda": "ProbNSDA",
     "ddisasm": "DDisasm",
     "loadstar": "Loadstar",
-    "segmentednsda": "SegmentedNSDA"
+    "segmentednsda": "SegmentedNSDA",
+    "ghidrafunctionlevel": "GhidraFunctionLevel"
 }
 
 # --- Utility Functions ---

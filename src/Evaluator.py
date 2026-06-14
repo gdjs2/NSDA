@@ -689,6 +689,94 @@ class DDisasmEvaluator(Evaluator):
         return code_precision, code_recall, process_time, 0.0, 0.0, error_code_list, error_data_list
 
 @register_evaluator
+class GhidraFunctionLevelEvaluator(Evaluator):
+    def evaluate(
+        self, 
+        binary_path: str,
+        base: int | None,
+        language: str,
+        code_set: set[int],
+        spinner: Spinner | None,
+        args: dict,
+        aux: dict | None = None
+    ):
+        import tempfile
+
+        from pathlib import Path
+        from iterative_training import delete_ghidra_cache, save_ghidra_cache
+        from ghidra.program.model.address import AddressSpace # type: ignore
+        from ghidra.program.model.listing import Program, Instruction, CodeUnitIterator # type: ignore
+        
+        auto_analyze_time = .0
+        total_process_time = .0
+
+        ghidra_project_path = tempfile.mkdtemp(prefix="ghidra_project_")
+        logger.info(f"Created temporary Ghidra project at {ghidra_project_path}")
+        binary_name = Path(binary_path).stem
+
+# Loading binary and auto-analysis - Start ======================================================
+        loading_time = datetime.now()
+        with pyghidra.open_project(path=ghidra_project_path, name=binary_name, create=True) as project:
+            # Load binary program
+            from ghidra.program.flatapi import FlatProgramAPI  # type: ignore
+            loader = pyghidra.program_loader().project(project).source(binary_path).language(language)
+            if spinner: spinner.update(text=f"[bold yellow]Loading binary {binary_name}...[/bold yellow]")
+            with loader.load() as load_result:
+                nsda_domain_object_user = "nsda_user"
+                program: Program = load_result.getPrimaryDomainObject(nsda_domain_object_user)
+
+                # Set image base if provided
+                if base is not None:
+                    base_addr = program.getAddressFactory().getDefaultAddressSpace().getAddress(base)
+                    transaction_id = program.startTransaction("Set image base")
+                    try:
+                        program.setImageBase(base_addr, True)
+                    finally:
+                        program.endTransaction(transaction_id, True)
+                
+                # Get flat API
+                flat_api = FlatProgramAPI(program)
+                loading_time = (datetime.now() - loading_time).total_seconds()
+                logger.info(f"Loaded binary {binary_name} in {loading_time:.2f}s")
+
+                # Ghidra Auto-analysis
+                if spinner: spinner.update(text=f"[bold yellow]Performing Auto-Analysis...[/bold yellow]")
+                transaction_id = program.startTransaction("Run Auto-Analysis")
+                auto_analyze_time = datetime.now()
+                try:
+                    from ghidra.app.plugin.core.analysis import AutoAnalysisManager # type: ignore
+                    mgr = AutoAnalysisManager.getAnalysisManager(program)
+                    mgr.initializeOptions()
+                    mgr.reAnalyzeAll(None) # type: ignore
+                    flat_api.analyzeChanges(program)
+                finally:
+                    program.endTransaction(transaction_id, True)
+                auto_analyze_time = (datetime.now() - auto_analyze_time).total_seconds()
+                logger.info(f"Auto-analysis completed in {auto_analyze_time:.2f}s")
+                total_process_time = loading_time + auto_analyze_time
+# Loading binary and auto-analysis - End ======================================================
+                load_result.save(pyghidra.task_monitor())
+                program.release(nsda_domain_object_user)
+
+        from segmented_helper import function_level_evaluate
+        if aux is None or "function_boundaries" not in aux:
+            raise ValueError("Function boundaries are required for function-level evaluation")
+        (
+            precision, recall, error_code_list
+        ) = function_level_evaluate(
+            project_path = ghidra_project_path,
+            project_name = binary_name,
+            file_system_name = f"/{Path(binary_path).name}",
+            code_set = code_set,
+            function_boundaries = aux["function_boundaries"],
+            base = base,
+            spinner = spinner
+        )
+        return (precision, recall,
+                total_process_time, 0.0, 0.0,
+                error_code_list, [])
+        
+@register_evaluator
 class SegmentedNSDAEvaluator(Evaluator):
     def evaluate(
         self, 
