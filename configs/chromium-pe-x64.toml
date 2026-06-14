@@ -9,7 +9,6 @@ log_level = "info"
 
 datasets = ["chromium_pe_x64"]
 evaluator = ["ghidrafunctionlevel", "segmentednsda"]
-# evaluator = ["ghidrafunctionlevel"]
 
 [dataset.loadstar]
 path = "./Datasets/Loadstar"
